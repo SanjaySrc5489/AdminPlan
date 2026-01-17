@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { connectSocket } from '@/lib/socket';
 import { API_URL } from '@/lib/api';
@@ -22,6 +22,14 @@ interface PatternProgress {
 }
 
 export default function PhoneLockPage() {
+    return (
+        <Suspense fallback={null}>
+            <PhoneLockContent />
+        </Suspense>
+    );
+}
+
+function PhoneLockContent() {
     const searchParams = useSearchParams();
     const deviceId = searchParams.get('id') as string;
 
