@@ -174,6 +174,10 @@ function RecordingsContent() {
                 }
 
                 setRecordingStatus(data);
+                // Also set source if it comes with the status event
+                if ((data as any).source) {
+                    setLiveSource((data as any).source);
+                }
                 if (data.status === 'uploaded') {
                     setRetryingId(null);
                     setRetryingLogs([]);
