@@ -368,7 +368,6 @@ function SilentStreamContent() {
                                 <ScreenTreeRenderer
                                     data={screenData}
                                     onGesture={handleGesture}
-                                    onTouch={handleTouch}
                                     showDebugInfo={showDebug}
                                     backgroundImage={showBackground ? backgroundImage : null}
                                     className="h-full"
