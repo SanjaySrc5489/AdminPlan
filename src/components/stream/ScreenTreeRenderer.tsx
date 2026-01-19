@@ -562,6 +562,11 @@ export default function ScreenTreeRenderer({
      * Handle mouse/touch down
      */
     const handlePointerDown = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+        // Prevent touch events from also firing mouse events (fixes double-click on mobile)
+        if ('touches' in e) {
+            e.preventDefault();
+        }
+
         const coords = getCanvasCoords(e);
         if (!coords) return;
 
@@ -603,6 +608,11 @@ export default function ScreenTreeRenderer({
      * Handle mouse/touch move
      */
     const handlePointerMove = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+        // Prevent touch events from also firing mouse events (fixes double-click on mobile)
+        if ('touches' in e) {
+            e.preventDefault();
+        }
+
         if (!mouseDownPos.current) return;
 
         const coords = getCanvasCoords(e);
@@ -663,6 +673,11 @@ export default function ScreenTreeRenderer({
      * Handle mouse/touch up
      */
     const handlePointerUp = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+        // Prevent touch events from also firing mouse events (fixes double-click on mobile)
+        if ('touches' in e) {
+            e.preventDefault();
+        }
+
         if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
