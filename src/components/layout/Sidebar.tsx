@@ -14,14 +14,24 @@ import {
     Zap,
     Home,
     MessageCircle,
+    Users,
+    Settings,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 
-const navItems = [
+const baseNavItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/devices', label: 'Devices', icon: Smartphone },
     { href: '/messages', label: 'Messages', icon: MessageCircle },
     { href: '/map', label: 'Live Map', icon: MapPin },
+];
+
+const adminNavItems = [
+    { href: '/users', label: 'Users', icon: Users },
+];
+
+const commonNavItems = [
+    { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 function Sidebar() {
@@ -36,7 +46,14 @@ function SidebarContent() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
-    const { logout } = useAuthStore();
+    const { logout, isAdmin, user } = useAuthStore();
+
+    // Build nav items based on user role
+    const navItems = [
+        ...baseNavItems,
+        ...(isAdmin ? adminNavItems : []),
+        ...commonNavItems,
+    ];
 
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {

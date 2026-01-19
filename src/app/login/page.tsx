@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, User, Lock, AlertCircle, Loader2, Sparkles, Zap, Eye, EyeOff } from 'lucide-react';
+import { Shield, User, Lock, AlertCircle, Loader2, Sparkles, Zap, Eye, EyeOff, Clock } from 'lucide-react';
 import { login as apiLogin } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
@@ -30,13 +30,31 @@ export default function LoginPage() {
         try {
             const data = await apiLogin(username, password);
             if (data.success) {
-                login(data.token, data.user);
+                login(
+                    data.token,
+                    data.refreshToken,
+                    data.user,
+                    data.signatureSecret
+                );
+
+                // Show welcome message based on role
+                console.log(`Logged in as ${data.user.role}: ${data.user.username}`);
+
                 router.push('/');
             } else {
                 setError(data.error || 'Login failed');
             }
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Connection failed');
+            const errorMessage = err.response?.data?.error || 'Connection failed';
+
+            // Handle specific error cases
+            if (errorMessage.includes('expired')) {
+                setError('Your account has expired. Please contact the administrator.');
+            } else if (errorMessage.includes('disabled')) {
+                setError('Your account has been disabled. Please contact the administrator.');
+            } else {
+                setError(errorMessage);
+            }
         } finally {
             setLoading(false);
         }
@@ -65,7 +83,7 @@ export default function LoginPage() {
                     <h1 className="text-3xl font-bold gradient-text">
                         ParentGuard
                     </h1>
-                    <p className="text-[var(--text-muted)] mt-2 font-medium">Admin Control Panel</p>
+                    <p className="text-[var(--text-muted)] mt-2 font-medium">Secure Control Panel</p>
                 </div>
 
                 {/* Login Card */}
@@ -73,8 +91,12 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Error Alert */}
                         {error && (
-                            <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--danger-glow)] border border-[var(--danger)]/20 text-[var(--danger)]">
-                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-[var(--danger-glow)] border border-[var(--danger)]/20 text-[var(--danger)]">
+                                {error.includes('expired') ? (
+                                    <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                ) : (
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                )}
                                 <p className="text-sm font-medium">{error}</p>
                             </div>
                         )}
@@ -93,6 +115,7 @@ export default function LoginPage() {
                                     placeholder="Enter username"
                                     className="input pl-12"
                                     required
+                                    autoComplete="username"
                                 />
                             </div>
                         </div>
@@ -111,6 +134,7 @@ export default function LoginPage() {
                                     placeholder="Enter password"
                                     className="input pl-12 pr-12"
                                     required
+                                    autoComplete="current-password"
                                 />
                                 <button
                                     type="button"
