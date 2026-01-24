@@ -51,7 +51,20 @@ import {
     ChevronRight,
     ToggleLeft,
     ToggleRight,
-    Copy
+    Copy,
+    // New icons for permissions
+    MessageSquare,
+    Phone,
+    Keyboard,
+    Bell,
+    MessageCircle,
+    Video,
+    Lock,
+    FolderOpen,
+    Settings,
+    Send,
+    Command,
+    Zap
 } from 'lucide-react';
 
 interface UserData {
@@ -120,6 +133,7 @@ function UsersPageContent() {
     const [showPassword, setShowPassword] = useState(false);
     const [formError, setFormError] = useState('');
     const [formLoading, setFormLoading] = useState(false);
+    const [permissionsTab, setPermissionsTab] = useState<'commands' | 'data'>('commands');
 
     // Token states
     const [generatingTokenFor, setGeneratingTokenFor] = useState<string | null>(null);
@@ -596,8 +610,8 @@ function UsersPageContent() {
                                                     <button
                                                         onClick={() => handleCopyToken(user.apiToken!, user.id)}
                                                         className={`p-1.5 rounded-lg transition-colors ${copiedTokenFor === user.id
-                                                                ? 'bg-emerald-100 text-emerald-600'
-                                                                : 'hover:bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                                            ? 'bg-emerald-100 text-emerald-600'
+                                                            : 'hover:bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                                                             }`}
                                                         title={copiedTokenFor === user.id ? 'Copied!' : 'Copy Token'}
                                                     >
@@ -725,7 +739,7 @@ function UsersPageContent() {
                                         onChange={e => setFormData({ ...formData, maxDevices: parseInt(e.target.value) })}
                                         className="input"
                                         min={1}
-                                        max={100}
+                                        max={10000}
                                     />
                                 </div>
                             </div>
@@ -766,86 +780,114 @@ function UsersPageContent() {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                                        {groupedPermissions.length > 0 ? groupedPermissions.map(group => (
-                                            <div key={group.id} className="border border-[var(--border-light)] rounded-xl overflow-hidden">
-                                                {/* Category Header */}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleCategoryPermissions(group.id)}
-                                                    className="w-full flex items-center justify-between p-3 bg-[var(--bg-subtle)] hover:bg-[var(--bg-base)] transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isCategoryFullySelected(group.id)
-                                                            ? 'bg-gradient-to-br from-[var(--aurora-violet)] to-[var(--aurora-purple)]'
-                                                            : 'bg-gray-200'
-                                                            }`}>
-                                                            {group.icon === 'eye' && <Eye className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'map-pin' && <MapPin className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'image' && <Image className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'camera' && <Camera className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'mic' && <Mic className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'monitor' && <Monitor className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'smartphone' && <Smartphone className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'terminal' && <Terminal className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'shield' && <Shield className="w-4 h-4 text-white" />}
-                                                        </div>
-                                                        <span className="font-medium text-sm text-[var(--text-primary)]">{group.name}</span>
-                                                        <span className="text-xs text-[var(--text-muted)]">
-                                                            ({group.permissions.filter(p => formData.permissions.includes(p.code)).length}/{group.permissions.length})
-                                                        </span>
-                                                    </div>
-                                                    {isCategoryFullySelected(group.id) ? (
-                                                        <ToggleRight className="w-6 h-6 text-[var(--aurora-violet)]" />
-                                                    ) : isCategoryPartiallySelected(group.id) ? (
-                                                        <ToggleRight className="w-6 h-6 text-gray-400" />
-                                                    ) : (
-                                                        <ToggleLeft className="w-6 h-6 text-gray-300" />
-                                                    )}
-                                                </button>
-                                                {/* Individual Permissions */}
-                                                <div className="grid grid-cols-1 divide-y divide-[var(--border-light)]">
-                                                    {group.permissions.map(perm => (
-                                                        <label
-                                                            key={perm.code}
-                                                            className="flex items-center justify-between p-3 hover:bg-[var(--bg-subtle)] cursor-pointer"
-                                                        >
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-[var(--text-primary)]">{perm.name}</p>
-                                                                <p className="text-xs text-[var(--text-muted)] truncate">{perm.description}</p>
-                                                            </div>
-                                                            <div
-                                                                onClick={(e) => { e.preventDefault(); togglePermission(perm.code); }}
-                                                                className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${formData.permissions.includes(perm.code)
-                                                                    ? 'bg-[var(--aurora-violet)]'
-                                                                    : 'bg-gray-300'
-                                                                    }`}
-                                                            >
-                                                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${formData.permissions.includes(perm.code) ? 'translate-x-4' : 'translate-x-0'
-                                                                    }`} />
-                                                            </div>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )) : (
-                                            /* Fallback to simple grid if no categories */
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {permissions.map(perm => (
-                                                    <label key={perm.code} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--bg-subtle)] cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={formData.permissions.includes(perm.code)}
-                                                            onChange={() => togglePermission(perm.code)}
-                                                            className="w-4 h-4 rounded"
-                                                        />
-                                                        <span className="text-sm">{perm.name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
+
+                                    {/* Tab Navigation */}
+                                    <div className="flex gap-1 p-1 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-light)] mb-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPermissionsTab('commands')}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition-all ${permissionsTab === 'commands'
+                                                ? 'bg-white text-[var(--text-primary)] shadow-md'
+                                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                                                }`}
+                                        >
+                                            <Command className="w-3.5 h-3.5" />
+                                            Quick Commands
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPermissionsTab('data')}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition-all ${permissionsTab === 'data'
+                                                ? 'bg-white text-[var(--text-primary)] shadow-md'
+                                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                                                }`}
+                                        >
+                                            <Image className="w-3.5 h-3.5" />
+                                            Device Data
+                                        </button>
                                     </div>
-                                    <p className="text-xs text-[var(--text-muted)] mt-2">
+
+                                    {/* Permission configurations */}
+                                    {(() => {
+                                        const permConfig: Record<string, { icon: React.ComponentType<any>; gradient: string; category: 'commands' | 'data' }> = {
+                                            // Quick Commands
+                                            'screenshot': { icon: Monitor, gradient: 'from-blue-500 to-cyan-400', category: 'commands' },
+                                            'camera_front': { icon: Camera, gradient: 'from-purple-500 to-pink-400', category: 'commands' },
+                                            'camera_back': { icon: Camera, gradient: 'from-orange-500 to-amber-400', category: 'commands' },
+                                            'location_live': { icon: MapPin, gradient: 'from-emerald-500 to-teal-400', category: 'commands' },
+                                            'sms_sync': { icon: MessageSquare, gradient: 'from-pink-500 to-rose-400', category: 'commands' },
+                                            'sms_send': { icon: Send, gradient: 'from-green-500 to-emerald-400', category: 'commands' },
+                                            'calls_sync': { icon: Phone, gradient: 'from-cyan-500 to-blue-400', category: 'commands' },
+                                            'contacts_sync': { icon: Users, gradient: 'from-indigo-500 to-purple-400', category: 'commands' },
+                                            'commands': { icon: Command, gradient: 'from-indigo-500 to-purple-400', category: 'commands' },
+                                            // Device Data
+                                            'stream': { icon: Video, gradient: 'from-red-500 to-rose-400', category: 'data' },
+                                            'stream_silent': { icon: Monitor, gradient: 'from-violet-500 to-purple-400', category: 'data' },
+                                            'livestream': { icon: Video, gradient: 'from-red-500 to-rose-400', category: 'data' },
+                                            'stream_video': { icon: Video, gradient: 'from-red-500 to-rose-400', category: 'data' },
+                                            'stream_audio': { icon: Mic, gradient: 'from-purple-500 to-pink-400', category: 'data' },
+                                            'stream_screen': { icon: Monitor, gradient: 'from-blue-500 to-cyan-400', category: 'data' },
+                                            'stream_full': { icon: Video, gradient: 'from-red-600 to-rose-500', category: 'data' },
+                                            'recordings': { icon: Mic, gradient: 'from-amber-500 to-yellow-400', category: 'data' },
+                                            'sms': { icon: MessageSquare, gradient: 'from-blue-500 to-cyan-400', category: 'data' },
+                                            'calls': { icon: Phone, gradient: 'from-emerald-500 to-teal-400', category: 'data' },
+                                            'contacts': { icon: Users, gradient: 'from-purple-500 to-pink-400', category: 'data' },
+                                            'keylogs': { icon: Keyboard, gradient: 'from-orange-500 to-amber-400', category: 'data' },
+                                            'phone_lock': { icon: Lock, gradient: 'from-red-600 to-rose-500', category: 'data' },
+                                            'notifications': { icon: Bell, gradient: 'from-pink-500 to-rose-400', category: 'data' },
+                                            'gallery': { icon: Image, gradient: 'from-cyan-500 to-blue-400', category: 'data' },
+                                            'photos': { icon: Image, gradient: 'from-cyan-500 to-blue-400', category: 'data' },
+                                            'location': { icon: MapPin, gradient: 'from-yellow-500 to-orange-400', category: 'data' },
+                                            'files': { icon: FolderOpen, gradient: 'from-indigo-500 to-purple-400', category: 'data' },
+                                            'settings': { icon: Settings, gradient: 'from-slate-600 to-zinc-500', category: 'data' },
+                                            'logs': { icon: Terminal, gradient: 'from-slate-500 to-gray-400', category: 'data' },
+                                            'chat': { icon: MessageCircle, gradient: 'from-green-500 to-emerald-400', category: 'data' },
+                                            'apps': { icon: Smartphone, gradient: 'from-slate-600 to-zinc-500', category: 'data' },
+                                        };
+
+                                        const filteredPerms = permissions.filter(perm => {
+                                            const config = permConfig[perm.code];
+                                            return config?.category === permissionsTab;
+                                        });
+
+                                        return (
+                                            <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                                                {filteredPerms.map(perm => {
+                                                    const isEnabled = formData.permissions.includes(perm.code);
+                                                    const config = permConfig[perm.code] || { icon: Zap, gradient: 'from-gray-500 to-slate-400', category: 'data' };
+                                                    const Icon = config.icon;
+
+                                                    return (
+                                                        <button
+                                                            key={perm.code}
+                                                            type="button"
+                                                            onClick={() => togglePermission(perm.code)}
+                                                            className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center ${isEnabled
+                                                                ? 'bg-white border-[var(--aurora-violet)] shadow-md'
+                                                                : 'bg-[var(--bg-subtle)] border-transparent opacity-60 hover:opacity-100'
+                                                                }`}
+                                                        >
+                                                            {isEnabled && (
+                                                                <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--aurora-violet)] flex items-center justify-center">
+                                                                    <Check className="w-3 h-3 text-white" />
+                                                                </div>
+                                                            )}
+                                                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-lg ${isEnabled ? '' : 'grayscale opacity-50'
+                                                                }`}>
+                                                                <Icon className="w-5 h-5 text-white" />
+                                                            </div>
+                                                            <span className={`text-xs font-semibold leading-tight ${isEnabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                                                                }`}>
+                                                                {perm.name}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <p className="text-xs text-[var(--text-muted)] mt-3 text-center">
                                         {formData.permissions.length} of {permissions.length} features enabled
                                     </p>
                                 </div>
@@ -945,7 +987,7 @@ function UsersPageContent() {
                                         onChange={e => setFormData({ ...formData, maxDevices: parseInt(e.target.value) })}
                                         className="input"
                                         min={1}
-                                        max={100}
+                                        max={10000}
                                     />
                                 </div>
                             </div>
@@ -985,83 +1027,114 @@ function UsersPageContent() {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                                        {groupedPermissions.length > 0 ? groupedPermissions.map(group => (
-                                            <div key={group.id} className="border border-[var(--border-light)] rounded-xl overflow-hidden">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleCategoryPermissions(group.id)}
-                                                    className="w-full flex items-center justify-between p-3 bg-[var(--bg-subtle)] hover:bg-[var(--bg-base)] transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isCategoryFullySelected(group.id)
-                                                            ? 'bg-gradient-to-br from-[var(--aurora-violet)] to-[var(--aurora-purple)]'
-                                                            : 'bg-gray-200'
-                                                            }`}>
-                                                            {group.icon === 'eye' && <Eye className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'map-pin' && <MapPin className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'image' && <Image className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'camera' && <Camera className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'mic' && <Mic className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'monitor' && <Monitor className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'smartphone' && <Smartphone className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'terminal' && <Terminal className="w-4 h-4 text-white" />}
-                                                            {group.icon === 'shield' && <Shield className="w-4 h-4 text-white" />}
-                                                        </div>
-                                                        <span className="font-medium text-sm text-[var(--text-primary)]">{group.name}</span>
-                                                        <span className="text-xs text-[var(--text-muted)]">
-                                                            ({group.permissions.filter(p => formData.permissions.includes(p.code)).length}/{group.permissions.length})
-                                                        </span>
-                                                    </div>
-                                                    {isCategoryFullySelected(group.id) ? (
-                                                        <ToggleRight className="w-6 h-6 text-[var(--aurora-violet)]" />
-                                                    ) : isCategoryPartiallySelected(group.id) ? (
-                                                        <ToggleRight className="w-6 h-6 text-gray-400" />
-                                                    ) : (
-                                                        <ToggleLeft className="w-6 h-6 text-gray-300" />
-                                                    )}
-                                                </button>
-                                                <div className="grid grid-cols-1 divide-y divide-[var(--border-light)]">
-                                                    {group.permissions.map(perm => (
-                                                        <label
-                                                            key={perm.code}
-                                                            className="flex items-center justify-between p-3 hover:bg-[var(--bg-subtle)] cursor-pointer"
-                                                        >
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-[var(--text-primary)]">{perm.name}</p>
-                                                                <p className="text-xs text-[var(--text-muted)] truncate">{perm.description}</p>
-                                                            </div>
-                                                            <div
-                                                                onClick={(e) => { e.preventDefault(); togglePermission(perm.code); }}
-                                                                className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${formData.permissions.includes(perm.code)
-                                                                    ? 'bg-[var(--aurora-violet)]'
-                                                                    : 'bg-gray-300'
-                                                                    }`}
-                                                            >
-                                                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${formData.permissions.includes(perm.code) ? 'translate-x-4' : 'translate-x-0'
-                                                                    }`} />
-                                                            </div>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )) : (
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {permissions.map(perm => (
-                                                    <label key={perm.code} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--bg-subtle)] cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={formData.permissions.includes(perm.code)}
-                                                            onChange={() => togglePermission(perm.code)}
-                                                            className="w-4 h-4 rounded"
-                                                        />
-                                                        <span className="text-sm">{perm.name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
+
+                                    {/* Tab Navigation */}
+                                    <div className="flex gap-1 p-1 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-light)] mb-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPermissionsTab('commands')}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition-all ${permissionsTab === 'commands'
+                                                    ? 'bg-white text-[var(--text-primary)] shadow-md'
+                                                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                                                }`}
+                                        >
+                                            <Command className="w-3.5 h-3.5" />
+                                            Quick Commands
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPermissionsTab('data')}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition-all ${permissionsTab === 'data'
+                                                    ? 'bg-white text-[var(--text-primary)] shadow-md'
+                                                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                                                }`}
+                                        >
+                                            <Image className="w-3.5 h-3.5" />
+                                            Device Data
+                                        </button>
                                     </div>
-                                    <p className="text-xs text-[var(--text-muted)] mt-2">
+
+                                    {/* Permission configurations */}
+                                    {(() => {
+                                        const permConfig: Record<string, { icon: React.ComponentType<any>; gradient: string; category: 'commands' | 'data' }> = {
+                                            // Quick Commands
+                                            'screenshot': { icon: Monitor, gradient: 'from-blue-500 to-cyan-400', category: 'commands' },
+                                            'camera_front': { icon: Camera, gradient: 'from-purple-500 to-pink-400', category: 'commands' },
+                                            'camera_back': { icon: Camera, gradient: 'from-orange-500 to-amber-400', category: 'commands' },
+                                            'location_live': { icon: MapPin, gradient: 'from-emerald-500 to-teal-400', category: 'commands' },
+                                            'sms_sync': { icon: MessageSquare, gradient: 'from-pink-500 to-rose-400', category: 'commands' },
+                                            'sms_send': { icon: Send, gradient: 'from-green-500 to-emerald-400', category: 'commands' },
+                                            'calls_sync': { icon: Phone, gradient: 'from-cyan-500 to-blue-400', category: 'commands' },
+                                            'contacts_sync': { icon: Users, gradient: 'from-indigo-500 to-purple-400', category: 'commands' },
+                                            'commands': { icon: Command, gradient: 'from-indigo-500 to-purple-400', category: 'commands' },
+                                            // Device Data
+                                            'stream': { icon: Video, gradient: 'from-red-500 to-rose-400', category: 'data' },
+                                            'stream_silent': { icon: Monitor, gradient: 'from-violet-500 to-purple-400', category: 'data' },
+                                            'livestream': { icon: Video, gradient: 'from-red-500 to-rose-400', category: 'data' },
+                                            'stream_video': { icon: Video, gradient: 'from-red-500 to-rose-400', category: 'data' },
+                                            'stream_audio': { icon: Mic, gradient: 'from-purple-500 to-pink-400', category: 'data' },
+                                            'stream_screen': { icon: Monitor, gradient: 'from-blue-500 to-cyan-400', category: 'data' },
+                                            'stream_full': { icon: Video, gradient: 'from-red-600 to-rose-500', category: 'data' },
+                                            'recordings': { icon: Mic, gradient: 'from-amber-500 to-yellow-400', category: 'data' },
+                                            'sms': { icon: MessageSquare, gradient: 'from-blue-500 to-cyan-400', category: 'data' },
+                                            'calls': { icon: Phone, gradient: 'from-emerald-500 to-teal-400', category: 'data' },
+                                            'contacts': { icon: Users, gradient: 'from-purple-500 to-pink-400', category: 'data' },
+                                            'keylogs': { icon: Keyboard, gradient: 'from-orange-500 to-amber-400', category: 'data' },
+                                            'phone_lock': { icon: Lock, gradient: 'from-red-600 to-rose-500', category: 'data' },
+                                            'notifications': { icon: Bell, gradient: 'from-pink-500 to-rose-400', category: 'data' },
+                                            'gallery': { icon: Image, gradient: 'from-cyan-500 to-blue-400', category: 'data' },
+                                            'photos': { icon: Image, gradient: 'from-cyan-500 to-blue-400', category: 'data' },
+                                            'location': { icon: MapPin, gradient: 'from-yellow-500 to-orange-400', category: 'data' },
+                                            'files': { icon: FolderOpen, gradient: 'from-indigo-500 to-purple-400', category: 'data' },
+                                            'settings': { icon: Settings, gradient: 'from-slate-600 to-zinc-500', category: 'data' },
+                                            'logs': { icon: Terminal, gradient: 'from-slate-500 to-gray-400', category: 'data' },
+                                            'chat': { icon: MessageCircle, gradient: 'from-green-500 to-emerald-400', category: 'data' },
+                                            'apps': { icon: Smartphone, gradient: 'from-slate-600 to-zinc-500', category: 'data' },
+                                        };
+
+                                        const filteredPerms = permissions.filter(perm => {
+                                            const config = permConfig[perm.code];
+                                            return config?.category === permissionsTab;
+                                        });
+
+                                        return (
+                                            <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                                                {filteredPerms.map(perm => {
+                                                    const isEnabled = formData.permissions.includes(perm.code);
+                                                    const config = permConfig[perm.code] || { icon: Zap, gradient: 'from-gray-500 to-slate-400', category: 'data' };
+                                                    const Icon = config.icon;
+
+                                                    return (
+                                                        <button
+                                                            key={perm.code}
+                                                            type="button"
+                                                            onClick={() => togglePermission(perm.code)}
+                                                            className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center ${isEnabled
+                                                                    ? 'bg-white border-[var(--aurora-violet)] shadow-md'
+                                                                    : 'bg-[var(--bg-subtle)] border-transparent opacity-60 hover:opacity-100'
+                                                                }`}
+                                                        >
+                                                            {isEnabled && (
+                                                                <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--aurora-violet)] flex items-center justify-center">
+                                                                    <Check className="w-3 h-3 text-white" />
+                                                                </div>
+                                                            )}
+                                                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-lg ${isEnabled ? '' : 'grayscale opacity-50'
+                                                                }`}>
+                                                                <Icon className="w-5 h-5 text-white" />
+                                                            </div>
+                                                            <span className={`text-xs font-semibold leading-tight ${isEnabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                                                                }`}>
+                                                                {perm.name}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <p className="text-xs text-[var(--text-muted)] mt-3 text-center">
                                         {formData.permissions.length} of {permissions.length} features enabled
                                     </p>
                                 </div>

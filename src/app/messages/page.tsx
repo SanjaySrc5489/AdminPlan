@@ -68,6 +68,12 @@ function MessagesPageContent() {
     const chatEndRef = useRef<HTMLDivElement>(null);
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+    // Helper to get auth headers
+    const getAuthHeaders = (): HeadersInit => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    };
+
     // Auto-scroll to bottom
     useEffect(() => {
         if (messagesContainerRef.current && messages.length > 0) {
@@ -128,7 +134,7 @@ function MessagesPageContent() {
                     );
 
                 if (hasRelevantMessages) {
-                    fetch(`${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&contactName=${encodeURIComponent(selectedContact)}&limit=500`)
+                    fetch(`${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&contactName=${encodeURIComponent(selectedContact)}&limit=500`, { headers: getAuthHeaders() })
                         .then(res => res.json())
                         .then(fetchedData => {
                             if (fetchedData.success) setMessages(fetchedData.data);
@@ -137,7 +143,7 @@ function MessagesPageContent() {
                 }
             }
 
-            fetch(`${API_URL}/api/devices/${deviceId}/chats?limit=1`)
+            fetch(`${API_URL}/api/devices/${deviceId}/chats?limit=1`, { headers: getAuthHeaders() })
                 .then(res => res.json())
                 .then(fetchedData => {
                     if (fetchedData.success && fetchedData.filters?.apps) {
@@ -164,7 +170,7 @@ function MessagesPageContent() {
         if (!deviceId) return;
         const fetchStats = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/devices/${deviceId}/chats?limit=1`);
+                const res = await fetch(`${API_URL}/api/devices/${deviceId}/chats?limit=1`, { headers: getAuthHeaders() });
                 const data = await res.json();
                 if (data.success && data.filters?.apps) setAppStats(data.filters.apps);
             } catch (err) {
@@ -180,7 +186,7 @@ function MessagesPageContent() {
         const fetchContacts = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&limit=1000`);
+                const res = await fetch(`${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&limit=1000`, { headers: getAuthHeaders() });
                 const data = await res.json();
                 if (data.success) {
                     const contactMap = new Map<string, Contact>();
@@ -211,7 +217,8 @@ function MessagesPageContent() {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&contactName=${encodeURIComponent(selectedContact)}&limit=500`
+                    `${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&contactName=${encodeURIComponent(selectedContact)}&limit=500`,
+                    { headers: getAuthHeaders() }
                 );
                 const data = await res.json();
                 if (data.success) {
@@ -629,7 +636,7 @@ function MessagesPageContent() {
                                                 try {
                                                     const res = await fetch(
                                                         `${API_URL}/api/devices/${deviceId}/chats?chatApp=${selectedApp}&contactName=${encodeURIComponent(selectedContact)}`,
-                                                        { method: 'DELETE' }
+                                                        { method: 'DELETE', headers: getAuthHeaders() }
                                                     );
                                                     const data = await res.json();
                                                     if (data.success) {

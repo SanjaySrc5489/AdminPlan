@@ -66,12 +66,12 @@ const dataLinks = [
     // Messaging & Communication
     { href: 'recordings', label: 'Recordings', icon: Mic, gradient: 'from-amber-500 to-yellow-400', description: 'Call recordings', key: 'recordings', permission: 'recordings' },
     { href: 'sms', label: 'Messages', icon: MessageSquare, gradient: 'from-blue-500 to-cyan-400', description: 'SMS history', key: 'sms', permission: 'sms' },
-    { href: 'send-sms', label: 'Send SMS', icon: Send, gradient: 'from-green-500 to-emerald-400', description: 'Send messages', key: 'send-sms', permission: 'send_sms' },
+    { href: 'send-sms', label: 'Send SMS', icon: Send, gradient: 'from-green-500 to-emerald-400', description: 'Send messages', key: 'send-sms', permission: 'sms_send' },
     { href: 'calls', label: 'Call Logs', icon: Phone, gradient: 'from-emerald-500 to-teal-400', description: 'Call history', key: 'calls', permission: 'calls' },
     { href: 'contacts', label: 'Contacts', icon: Users, gradient: 'from-purple-500 to-pink-400', description: 'Contact list', key: 'contacts', permission: 'contacts' },
     // Monitoring
     { href: 'keylogs', label: 'Keylogs', icon: Keyboard, gradient: 'from-orange-500 to-amber-400', description: 'Keystrokes', key: 'keylogs', permission: 'keylogs' },
-    { href: 'phone-lock', label: 'Phone Lock', icon: Lock, gradient: 'from-red-600 to-rose-500', description: 'PIN & Pattern', key: 'unlocks', permission: 'phone_lock' },
+    { href: 'phone-lock', label: 'Captured Pins', icon: Lock, gradient: 'from-red-600 to-rose-500', description: 'PIN & Pattern', key: 'unlocks', permission: 'phone_lock' },
     { href: 'notifications', label: 'Notifications', icon: Bell, gradient: 'from-pink-500 to-rose-400', description: 'App alerts', key: 'notifications', permission: 'notifications' },
     // Media & Files
     { href: 'gallery', label: 'Gallery', icon: Image, gradient: 'from-cyan-500 to-blue-400', description: 'Photos & media', key: 'gallery', permission: 'gallery' },
