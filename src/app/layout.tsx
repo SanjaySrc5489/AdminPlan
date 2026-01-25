@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'Parental Control Admin Dashboard',
 };
 
+import SessionTimeoutModal from '@/components/auth/SessionTimeoutModal';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -16,7 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <SessionTimeoutModal />
+      </body>
     </html>
   );
 }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from './store';
 
 // Use localhost for testing, switch to production URL for deployment
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -129,25 +130,41 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
+        if (error.response?.status === 401) {
+            // Avoid infinite loops if already on login page
+            if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+                return Promise.reject(createSanitizedError(error));
+            }
 
-            const refreshToken = localStorage.getItem('refresh_token');
-            if (refreshToken) {
-                try {
-                    const res = await axios.post(`${API_URL}/api/auth/refresh`, { refreshToken });
-                    if (res.data.success) {
-                        localStorage.setItem('admin_token', res.data.token);
-                        localStorage.setItem('refresh_token', res.data.refreshToken);
-                        originalRequest.headers.Authorization = `Bearer ${res.data.token}`;
-                        return api(originalRequest);
+            if (!originalRequest._retry) {
+                originalRequest._retry = true;
+                const refreshToken = localStorage.getItem('refresh_token');
+
+                if (refreshToken) {
+                    try {
+                        const res = await axios.post(`${API_URL}/api/auth/refresh`, { refreshToken });
+                        if (res.data.success) {
+                            localStorage.setItem('admin_token', res.data.token);
+                            localStorage.setItem('refresh_token', res.data.refreshToken);
+                            originalRequest.headers.Authorization = `Bearer ${res.data.token}`;
+                            return api(originalRequest);
+                        }
+                    } catch (refreshError) {
+                        // Refresh failed
                     }
-                } catch (refreshError) {
-                    // Refresh failed, clear auth
+                }
+
+                // If we reach here, either no refresh token or refresh failed
+                if (typeof window !== 'undefined') {
+                    // Don't auto-redirect, let the UI show a modal first
+                    const { setShowSessionTimeout } = useAuthStore.getState();
+                    setShowSessionTimeout(true);
+
+                    // Cleanup session state but don't redirect yet
                     localStorage.removeItem('admin_token');
                     localStorage.removeItem('refresh_token');
                     localStorage.removeItem('signature_secret');
-                    window.location.href = '/login';
+                    localStorage.removeItem('auth-storage');
                 }
             }
         }

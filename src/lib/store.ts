@@ -73,6 +73,8 @@ interface AuthState {
     setHydrated: (state: boolean) => void;
     updateToken: (token: string, refreshToken: string) => void;
     hasPermission: (feature: string) => boolean;
+    showSessionTimeout: boolean;
+    setShowSessionTimeout: (show: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -134,7 +136,10 @@ export const useAuthStore = create<AuthState>()(
 
                 // Check specific permission
                 return user.permissions.includes(feature);
-            }
+            },
+
+            showSessionTimeout: false,
+            setShowSessionTimeout: (show) => set({ showSessionTimeout: show })
         }),
         {
             name: 'auth-storage',

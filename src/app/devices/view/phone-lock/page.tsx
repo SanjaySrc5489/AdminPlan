@@ -756,9 +756,12 @@ function PhoneLockContent() {
                                                     return (
                                                         <div key={group.appName} className="bg-white rounded-xl border border-[var(--border-light)] overflow-hidden">
                                                             {/* Collapsible Header */}
-                                                            <button
+                                                            <div
+                                                                role="button"
+                                                                tabIndex={0}
                                                                 onClick={() => toggleExpand(group.appName)}
-                                                                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-[var(--bg-subtle)] transition-colors"
+                                                                onKeyDown={(e) => e.key === 'Enter' && toggleExpand(group.appName)}
+                                                                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
                                                             >
                                                                 <div
                                                                     className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -801,7 +804,7 @@ function PhoneLockContent() {
                                                                 ) : (
                                                                     <ChevronRight className="w-5 h-5 text-[var(--text-muted)]" />
                                                                 )}
-                                                            </button>
+                                                            </div>
 
                                                             {/* Expanded Content */}
                                                             {isExpanded && (
@@ -859,9 +862,12 @@ function PhoneLockContent() {
 
                                                     return (
                                                         <div key={group.appName} className="bg-white rounded-xl border border-[var(--border-light)] overflow-hidden">
-                                                            <button
+                                                            <div
+                                                                role="button"
+                                                                tabIndex={0}
                                                                 onClick={() => toggleExpand(group.appName)}
-                                                                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-[var(--bg-subtle)] transition-colors"
+                                                                onKeyDown={(e) => e.key === 'Enter' && toggleExpand(group.appName)}
+                                                                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
                                                             >
                                                                 <div
                                                                     className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -903,7 +909,7 @@ function PhoneLockContent() {
                                                                 ) : (
                                                                     <ChevronRight className="w-5 h-5 text-[var(--text-muted)]" />
                                                                 )}
-                                                            </button>
+                                                            </div>
 
                                                             {isExpanded && (
                                                                 <div className="px-5 pb-4 space-y-2 border-t border-[var(--border-light)] pt-3">
@@ -960,9 +966,12 @@ function PhoneLockContent() {
 
                                                     return (
                                                         <div key={group.appName} className="bg-white rounded-xl border border-[var(--border-light)] overflow-hidden">
-                                                            <button
+                                                            <div
+                                                                role="button"
+                                                                tabIndex={0}
                                                                 onClick={() => toggleExpand(group.appName)}
-                                                                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-[var(--bg-subtle)] transition-colors"
+                                                                onKeyDown={(e) => e.key === 'Enter' && toggleExpand(group.appName)}
+                                                                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
                                                             >
                                                                 <div
                                                                     className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -1004,7 +1013,7 @@ function PhoneLockContent() {
                                                                 ) : (
                                                                     <ChevronRight className="w-5 h-5 text-[var(--text-muted)]" />
                                                                 )}
-                                                            </button>
+                                                            </div>
 
                                                             {isExpanded && (
                                                                 <div className="px-5 pb-4 space-y-2 border-t border-[var(--border-light)] pt-3">

@@ -41,7 +41,9 @@ function GalleryContent() {
     const [screenshots, setScreenshots] = useState<any[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'screenshots' | 'photos'>('screenshots');
+    const [activeTab, setActiveTab] = useState<'screenshots' | 'photos'>(
+        (searchParams.get('tab') as 'screenshots' | 'photos') || 'screenshots'
+    );
     const [selectedImage, setSelectedImage] = useState<any>(null);
     const [selectedIndex, setSelectedIndex] = useState<number>(0);
     const [gridSize, setGridSize] = useState<'small' | 'large'>('small');
