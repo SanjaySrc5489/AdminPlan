@@ -27,6 +27,10 @@ export default function NotificationListener() {
 
         // Helper to check if we should notify for this device/type
         const shouldNotify = (deviceId: string, type: 'status' | 'data') => {
+            // MULTITENANCY CHECK: Only notify if device exists in user's authorized list
+            const isAuthorized = devices.some(d => d.deviceId === deviceId);
+            if (!isAuthorized) return false;
+
             // Priority 1: If on dashboard, show everything
             if (isDashboard) return true;
 

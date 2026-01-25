@@ -73,7 +73,7 @@ function LoginContent() {
                 setError(data.error || 'Login failed');
             }
         } catch (err: any) {
-            const errorMessage = err.response?.data?.error || 'Connection failed';
+            const errorMessage = err.response?.data?.error || err.message || 'Connection failed';
             if (errorMessage.includes('expired')) {
                 setError('Your account has expired. Please contact the administrator.');
             } else if (errorMessage.includes('disabled')) {

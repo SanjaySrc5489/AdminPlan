@@ -131,8 +131,11 @@ api.interceptors.response.use(
         const originalRequest = error.config;
 
         if (error.response?.status === 401) {
-            // Avoid infinite loops if already on login page
-            if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+            // Avoid infinite loops or session modals if already on login page or attempting to login
+            const isLoginRequest = originalRequest.url?.includes('/auth/login');
+            const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+
+            if (isLoginRequest || isOnLoginPage) {
                 return Promise.reject(createSanitizedError(error));
             }
 

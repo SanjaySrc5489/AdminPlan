@@ -452,21 +452,20 @@ function RecordingsContent() {
                         </Link>
 
                         <div className="flex flex-wrap items-center gap-2">
-                            {/* Settings Dropdowns */}
-                            <div className="flex items-center gap-2">
-                                {/* Audio Source Dropdown */}
+                            {/* Filter & Settings Controls */}
+                            <div className="flex flex-wrap items-center gap-3">
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowSourceDropdown(!showSourceDropdown)}
-                                        disabled={savingSource}
-                                        className="btn btn-secondary inline-flex items-center gap-1 sm:gap-2 px-3 py-2"
+                                        className="h-11 px-4 rounded-xl border border-[var(--border)] bg-white text-sm font-bold text-[var(--foreground)] hover:border-[var(--primary)] transition-all flex items-center gap-2"
                                     >
-                                        {savingSource ? <Loader2 className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
-                                        <span className="hidden lg:inline">{AUDIO_SOURCES.find(s => s.value === audioSource)?.label || 'Audio'}</span>
-                                        <ChevronDown className={`w-3 h-3 transition-transform ${showSourceDropdown ? 'rotate-180' : ''}`} />
+                                        <Settings className={`w-4 h-4 text-[var(--muted)] ${savingSource ? 'animate-spin' : ''}`} />
+                                        <span>Settings</span>
+                                        <ChevronDown className={`w-4 h-4 transition-transform ${showSourceDropdown ? 'rotate-180' : ''}`} />
                                     </button>
+
                                     {showSourceDropdown && (
-                                        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-72 bg-white rounded-xl shadow-xl border border-[var(--border)] py-2 z-50 animate-fade-in">
+                                        <div className="absolute left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-[var(--border)] py-2 z-50 animate-fade-in">
                                             <div className="px-3 py-2 border-b border-[var(--border)]">
                                                 <p className="text-xs font-semibold text-[var(--muted)] uppercase">Audio Source</p>
                                             </div>
@@ -487,20 +486,18 @@ function RecordingsContent() {
                                     )}
                                 </div>
 
-                                {/* Quality Dropdown */}
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowQualityDropdown(!showQualityDropdown)}
-                                        disabled={savingQuality}
-                                        className="btn btn-secondary inline-flex items-center gap-1 sm:gap-2 px-3 py-2"
+                                        className="h-11 px-4 rounded-xl border border-[var(--border)] bg-white text-sm font-bold text-[var(--foreground)] hover:border-[var(--primary)] transition-all flex items-center gap-2"
                                     >
-                                        {savingQuality ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
-                                        <span className="hidden lg:inline">{QUALITY_OPTIONS.find(q => q.value === quality)?.label || 'Quality'}</span>
-                                        <ChevronDown className={`w-3 h-3 transition-transform ${showQualityDropdown ? 'rotate-180' : ''}`} />
+                                        <AudioLines className={`w-4 h-4 text-[var(--muted)] ${savingQuality ? 'animate-spin' : ''}`} />
+                                        <span>Quality</span>
+                                        <ChevronDown className={`w-4 h-4 transition-transform ${showQualityDropdown ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     {showQualityDropdown && (
-                                        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-72 bg-white rounded-xl shadow-xl border border-[var(--border)] py-2 z-50 animate-fade-in">
+                                        <div className="absolute left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-[var(--border)] py-2 z-50 animate-fade-in">
                                             <div className="px-3 py-2 border-b border-[var(--border)]">
                                                 <p className="text-xs font-semibold text-[var(--muted)] uppercase">Recording Depth</p>
                                             </div>
@@ -523,12 +520,12 @@ function RecordingsContent() {
                             </div>
 
                             {/* Sync Controls */}
-                            <div className="flex items-center gap-2 ml-auto">
-                                <button onClick={syncFromDevice} disabled={syncing} className={`btn ${syncing ? 'btn-secondary opacity-50' : 'btn-primary'} px-3 sm:px-4`}>
+                            <div className="flex items-center gap-2">
+                                <button onClick={syncFromDevice} disabled={syncing} className={`h-11 rounded-xl flex items-center gap-2 transition-all ${syncing ? 'bg-slate-100 text-slate-400' : 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20 hover:-translate-y-0.5'} px-5`}>
                                     <Upload className={`w-4 h-4 ${syncing ? 'animate-bounce' : ''}`} />
-                                    <span className="hidden sm:inline">{syncing ? 'Syncing...' : 'Sync'}</span>
+                                    <span className="font-bold text-sm">{syncing ? 'Syncing' : 'Sync'}</span>
                                 </button>
-                                <button onClick={fetchRecordings} disabled={loading} className="btn btn-secondary p-2.5">
+                                <button onClick={fetchRecordings} disabled={loading} className="h-11 w-11 rounded-xl bg-white border border-[var(--border)] flex items-center justify-center text-[var(--foreground)] hover:bg-slate-50 transition-all">
                                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                                 </button>
                             </div>
@@ -579,8 +576,8 @@ function RecordingsContent() {
                                     )}
                                 </div>
                                 {(effectiveStatus.status === 'recording' || effectiveStatus.status === 'uploading') && (
-                                    <div className="flex-shrink-0">
-                                        <button onClick={switchSourceNow} disabled={switchingSource} className="btn bg-amber-500 hover:bg-amber-600 text-white border-none shadow-lg shadow-amber-500/20 py-3 px-6 rounded-2xl flex items-center gap-2">
+                                    <div className="flex-shrink-0 w-full md:w-auto">
+                                        <button onClick={switchSourceNow} disabled={switchingSource} className="w-full btn bg-amber-500 hover:bg-amber-600 text-white border-none shadow-lg shadow-amber-500/20 py-3 px-6 rounded-2xl flex items-center justify-center gap-2">
                                             {switchingSource ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                                             <span className="font-bold">Try Next Source</span>
                                         </button>
@@ -636,67 +633,66 @@ function RecordingsContent() {
                                             </div>
 
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    {isPlaying && <AudioLines className="w-5 h-5 text-[var(--primary)] animate-pulse" />}
+                                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                    {isPlaying && <AudioLines className="w-5 h-5 text-[var(--primary)] animate-pulse hidden sm:block" />}
                                                     <div className="flex flex-col min-w-0">
-                                                        <span className="font-bold text-[var(--foreground)] text-lg truncate">
+                                                        <span className="font-bold text-[var(--foreground)] text-base sm:text-lg truncate">
                                                             {recording.contactName || recording.phoneNumber || 'Unknown'}
                                                         </span>
                                                         {recording.phoneNumber && recording.contactName && (
-                                                            <span className="text-xs text-[var(--muted)] truncate">{recording.phoneNumber}</span>
+                                                            <span className="text-[10px] sm:text-xs text-[var(--muted)] truncate">{recording.phoneNumber}</span>
                                                         )}
                                                     </div>
-                                                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${recording.callType === 'incoming' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                                                        }`}>
-                                                        {recording.callType}
-                                                    </span>
-                                                    {isStalled(recording) && (
-                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">Stalled</span>
-                                                    )}
-                                                    {recording.status === 'paused' && (
-                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Paused</span>
-                                                    )}
-                                                    {recording.status === 'uploading' && !isStalled(recording) && (
-                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 animate-pulse">Uploading...</span>
-                                                    )}
-                                                    {recording.status === 'pending' && !isStalled(recording) && (
-                                                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">Pending</span>
-                                                    )}
+                                                    <div className="flex flex-wrap gap-1">
+                                                        <span className={`text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${recording.callType === 'incoming' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                            }`}>
+                                                            {recording.callType}
+                                                        </span>
+                                                        {isStalled(recording) && (
+                                                            <span className="text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">Stalled</span>
+                                                        )}
+                                                        {recording.status === 'paused' && (
+                                                            <span className="text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Paused</span>
+                                                        )}
+                                                        {recording.status === 'uploading' && !isStalled(recording) && (
+                                                            <span className="text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 animate-pulse">Uploading</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--muted)]">
-                                                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatTime(recording.duration)}</span>
-                                                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatDate(recording.recordedAt)}</span>
-                                                    <span className="flex items-center gap-1"><Volume2 className="w-3.5 h-3.5" />{formatFileSize(recording.fileSize)}</span>
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-sm text-[var(--muted)] font-medium">
+                                                    <span className="flex items-center gap-1"><Clock className="w-3 sm:w-3.5 h-3 sm:h-3.5" />{formatTime(recording.duration)}</span>
+                                                    <span className="flex items-center gap-1"><Calendar className="w-3 sm:w-3.5 h-3 sm:h-3.5" />{formatDate(recording.recordedAt)}</span>
+                                                    <span className="flex items-center gap-1"><Volume2 className="w-3 sm:w-3.5 h-3 sm:h-3.5" />{formatFileSize(recording.fileSize)}</span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex flex-col sm:flex-row items-center gap-0.5">
                                                 {recording.status !== 'uploaded' && (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-0.5">
                                                         {recording.status !== 'paused' && recording.status !== 'error' && (
                                                             <button
                                                                 onClick={() => pauseRecordingSync(recording)}
-                                                                className="p-2.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all"
+                                                                className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all"
                                                                 title="Pause Sync"
                                                             >
-                                                                <Pause className="w-5 h-5" />
+                                                                <Pause className="w-4 sm:w-5 h-4 sm:h-5" />
                                                             </button>
                                                         )}
                                                         <button
                                                             onClick={() => retryRecordingSync(recording)}
                                                             disabled={retryingId === recording.id}
-                                                            className="p-2.5 rounded-xl text-[var(--primary)] hover:bg-[var(--primary-glow)] transition-all disabled:opacity-50"
+                                                            className="p-2 sm:p-2.5 rounded-xl text-[var(--primary)] hover:bg-[var(--primary-glow)] transition-all disabled:opacity-50"
                                                             title="Retry Sync"
                                                         >
-                                                            <RefreshCw className={`w-5 h-5 ${retryingId === recording.id ? 'animate-spin' : ''}`} />
+                                                            <RefreshCw className={`w-4 sm:w-5 h-4 sm:h-5 ${retryingId === recording.id ? 'animate-spin' : ''}`} />
                                                         </button>
                                                     </div>
                                                 )}
-                                                <button onClick={() => downloadRecording(recording)} disabled={recording.status !== 'uploaded'} className="p-2.5 rounded-xl text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-all disabled:opacity-50">
-                                                    <Download className="w-5 h-5" />
+                                                <button onClick={() => downloadRecording(recording)} disabled={recording.status !== 'uploaded'} className="p-2 sm:p-2.5 rounded-xl text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-all disabled:opacity-50">
+                                                    <Download className="w-4 sm:w-5 h-4 sm:h-5" />
                                                 </button>
-                                                <button onClick={() => deleteRecording(recording.id)} className="p-2.5 rounded-xl text-[var(--muted-light)] hover:text-red-500 hover:bg-red-50 transition-all">
-                                                    <Trash2 className="w-5 h-5" />
+                                                <button onClick={() => deleteRecording(recording.id)} className="p-2 sm:p-2.5 rounded-xl text-[var(--muted-light)] hover:text-red-500 hover:bg-red-50 transition-all">
+                                                    <Trash2 className="w-4 sm:w-5 h-4 sm:h-5" />
                                                 </button>
                                             </div>
                                         </div>
