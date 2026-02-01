@@ -24,6 +24,7 @@ import {
     Lock,
     Key,
     Info,
+    Ban,
 } from 'lucide-react';
 
 interface DeviceCardProps {
@@ -46,6 +47,7 @@ interface DeviceCardProps {
             photos: number;
         };
         isPinned?: boolean;
+        isBlacklisted?: boolean;
         remark?: string;
         owner?: { id: string; username: string };
         syncData?: {
@@ -60,7 +62,9 @@ interface DeviceCardProps {
     };
     showRemark?: boolean;
     showPin?: boolean;
+    showBlacklist?: boolean;
     onPinToggle?: (deviceId: string, isPinned: boolean) => void;
+    onBlacklistToggle?: (deviceId: string, isBlacklisted: boolean) => void;
     onRemarkUpdate?: (deviceId: string, remark: string) => void;
     compact?: boolean;
 }
@@ -69,7 +73,9 @@ export default function DeviceCard({
     device,
     showRemark = true,
     showPin = true,
+    showBlacklist = true,
     onPinToggle,
+    onBlacklistToggle,
     onRemarkUpdate,
     compact = false
 }: DeviceCardProps) {
@@ -112,6 +118,14 @@ export default function DeviceCard({
         e.stopPropagation();
         if (onPinToggle) {
             onPinToggle(device.deviceId, !device.isPinned);
+        }
+    };
+
+    const handleBlacklistToggle = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onBlacklistToggle) {
+            onBlacklistToggle(device.deviceId, !device.isBlacklisted);
         }
     };
 
@@ -385,6 +399,19 @@ export default function DeviceCard({
                             title={device.isPinned ? 'Unpin device' : 'Pin device'}
                         >
                             <Star className={`w-4 h-4 lg:w-5 lg:h-5 ${device.isPinned ? 'fill-amber-500' : ''}`} />
+                        </button>
+                    )}
+                    {/* Blacklist Button */}
+                    {showBlacklist && (
+                        <button
+                            onClick={handleBlacklistToggle}
+                            className={`p-2 lg:p-2.5 rounded-xl transition-all ${device.isBlacklisted
+                                ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20'
+                                : 'bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500 lg:opacity-0 lg:group-hover:opacity-100'
+                                }`}
+                            title={device.isBlacklisted ? 'Remove from blacklist' : 'Blacklist device'}
+                        >
+                            <Ban className={`w-4 h-4 lg:w-5 lg:h-5`} />
                         </button>
                     )}
                 </div>
